@@ -1,0 +1,24 @@
+{
+  "name": "gasbank",
+  "version": "0.1.0",
+  "description": "Standalone Anesthesiology Question Bank desktop application",
+  "main": "electron/main.js",
+  "scripts": {
+    "build": "npm run build:renderer",
+    "build:renderer": "esbuild src/renderer.jsx --bundle --outfile=dist/renderer.js --loader:.jsx=jsx --define:process.env.NODE_ENV=\\\"production\\\" --platform=browser --format=iife",
+    "watch": "esbuild src/renderer.jsx --bundle --outfile=dist/renderer.js --loader:.jsx=jsx --define:process.env.NODE_ENV=\\\"development\\\" --platform=browser --format=iife --watch",
+    "start": "npm run build && electron .",
+    "dev": "concurrently \\\"npm:watch\\\" \\\"electron .\\\""
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^38.2.1",
+    "esbuild": "^0.21.5"
+  }
+}

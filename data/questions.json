@@ -1,0 +1,152 @@
+[
+  {
+    "id": "ANES001",
+    "category": "Basic Sciences",
+    "subcategory": "Pharmacology",
+    "difficulty": "medium",
+    "questionText": "Which intravenous anesthetic provides the most pronounced analgesic properties at clinical doses?",
+    "answers": [
+      {
+        "text": "Propofol",
+        "isCorrect": false,
+        "explanation": "Propofol is a hypnotic agent with minimal to no intrinsic analgesic effect."
+      },
+      {
+        "text": "Ketamine",
+        "isCorrect": true,
+        "explanation": "Ketamine produces dissociative anesthesia through NMDA receptor antagonism, yielding potent analgesia."
+      },
+      {
+        "text": "Etomidate",
+        "isCorrect": false,
+        "explanation": "Etomidate is hemodynamically stable but does not provide meaningful analgesia."
+      },
+      {
+        "text": "Thiopental",
+        "isCorrect": false,
+        "explanation": "Thiopental is an ultra-short acting barbiturate without appreciable analgesic properties."
+      }
+    ],
+    "didactic": "Most intravenous induction agents such as propofol and thiopental provide hypnosis without analgesia. Ketamine is unique: by antagonizing NMDA receptors along ascending pain pathways it confers significant analgesic benefit while maintaining sympathetic tone and airway reflexes."
+  },
+  {
+    "id": "ANES002",
+    "category": "Basic Sciences",
+    "subcategory": "Physiology",
+    "difficulty": "medium",
+    "questionText": "During a rapid sequence induction, which physiologic response to succinylcholine is most concerning in a patient with upregulated extrajunctional acetylcholine receptors?",
+    "answers": [
+      {
+        "text": "Severe bradycardia",
+        "isCorrect": false,
+        "explanation": "Although bradycardia can occur, especially in pediatric patients, it is not the primary concern in upregulated extrajunctional receptors."
+      },
+      {
+        "text": "Profound hyperkalemia",
+        "isCorrect": true,
+        "explanation": "Upregulated extrajunctional receptors allow massive potassium efflux when succinylcholine depolarizes the membrane, precipitating dangerous hyperkalemia."
+      },
+      {
+        "text": "Histamine-mediated hypotension",
+        "isCorrect": false,
+        "explanation": "Hypotension from histamine release is more commonly associated with agents like atracurium."
+      },
+      {
+        "text": "Malignant hyperthermia",
+        "isCorrect": false,
+        "explanation": "Succinylcholine is a triggering agent for malignant hyperthermia; however, the risk is unrelated to extrajunctional receptors."
+      }
+    ],
+    "didactic": "Conditions such as burns, neuromuscular disorders, and prolonged immobilization upregulate extrajunctional acetylcholine receptors. Succinylcholine-induced depolarization opens these channels, leading to substantial potassium efflux and life-threatening hyperkalemia."
+  },
+  {
+    "id": "ANES003",
+    "category": "Clinical Anesthesia",
+    "subcategory": "Airway Management",
+    "difficulty": "easy",
+    "questionText": "Which of the following is the most reliable predictor of a difficult mask ventilation?",
+    "answers": [
+      {
+        "text": "Mallampati class III",
+        "isCorrect": false,
+        "explanation": "Mallampati classification predicts glottic view rather than mask ventilation difficulty."
+      },
+      {
+        "text": "Presence of a beard",
+        "isCorrect": true,
+        "explanation": "Facial hair impairs mask seal and is a well-established independent predictor of difficult mask ventilation."
+      },
+      {
+        "text": "Thyromental distance of 7 cm",
+        "isCorrect": false,
+        "explanation": "A thyromental distance under 6 cm is typically concerning; 7 cm is within normal range."
+      },
+      {
+        "text": "Body mass index of 28 kg/m2",
+        "isCorrect": false,
+        "explanation": "Obesity is a risk factor but by itself is less predictive than facial hair, edentulism, or limited mandibular protrusion."
+      }
+    ],
+    "didactic": "Risk factors for difficult mask ventilation include facial hair, obesity, edentulism, advanced age, and a history of snoring or obstructive sleep apnea. Among the available options, a thick beard is the most reliable predictor because it compromises mask seal."
+  },
+  {
+    "id": "ANES004",
+    "category": "Clinical Anesthesia",
+    "subcategory": "Cardiac Anesthesia",
+    "difficulty": "hard",
+    "questionText": "During cardiopulmonary bypass separation, a patient develops acute hypotension with a markedly widened pulse pressure and a high central venous pressure. Which diagnosis should be considered first?",
+    "answers": [
+      {
+        "text": "Vasoplegic syndrome",
+        "isCorrect": false,
+        "explanation": "Vasoplegia causes hypotension with low systemic vascular resistance but does not typically cause elevated central venous pressure with wide pulse pressure."
+      },
+      {
+        "text": "Cardiac tamponade",
+        "isCorrect": false,
+        "explanation": "Tamponade produces hypotension with narrow pulse pressure due to external ventricular compression."
+      },
+      {
+        "text": "Aortic dissection",
+        "isCorrect": false,
+        "explanation": "Acute aortic dissection is catastrophic but rare immediately after bypass separation and would not explain elevated venous pressure without distal perfusion deficits."
+      },
+      {
+        "text": "Protamine reaction (type III)",
+        "isCorrect": true,
+        "explanation": "Protamine-heparin complexes can cause acute pulmonary hypertension with right ventricular failure, increasing CVP while widening pulse pressure due to severe pulmonary pressures."
+      }
+    ],
+    "didactic": "Protamine reactions manifest in three forms. Type III reactions cause acute pulmonary hypertension and right ventricular failure, resulting in hypotension, elevated CVP, and wide pulse pressure. Prompt recognition and management—including inotropic support and consideration of methylene blue—is critical."
+  },
+  {
+    "id": "ANES005",
+    "category": "Pain Medicine",
+    "subcategory": "Chronic Pain",
+    "difficulty": "medium",
+    "questionText": "A patient with chronic opioid therapy presents for elective lumbar laminectomy. Which perioperative strategy best mitigates opioid-induced hyperalgesia risk?",
+    "answers": [
+      {
+        "text": "High-dose intraoperative fentanyl boluses",
+        "isCorrect": false,
+        "explanation": "Escalating opioid doses can exacerbate opioid-induced hyperalgesia rather than prevent it."
+      },
+      {
+        "text": "Perioperative ketamine infusion",
+        "isCorrect": true,
+        "explanation": "Low-dose ketamine modulates NMDA receptor activity and can attenuate opioid-induced hyperalgesia."
+      },
+      {
+        "text": "Switching to a pure mu agonist preoperatively",
+        "isCorrect": false,
+        "explanation": "Transitioning opioids does not reliably reduce hyperalgesia risk without adjuvant therapy."
+      },
+      {
+        "text": "Withholding baseline opioids the day of surgery",
+        "isCorrect": false,
+        "explanation": "Holding chronic opioids can precipitate withdrawal and worsen postoperative pain control."
+      }
+    ],
+    "didactic": "Opioid-induced hyperalgesia is mediated by NMDA receptor activation and central sensitization. Multimodal analgesia with low-dose ketamine, alpha-2 agonists, or magnesium offers benefit. Abrupt cessation of baseline opioids is contraindicated."
+  }
+]
