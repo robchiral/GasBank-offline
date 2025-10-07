@@ -1,0 +1,713 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { Dashboard } from '../components/Dashboard.jsx';
+import { SessionView } from '../components/SessionView.jsx';
+import { HistoryView } from '../components/HistoryView.jsx';
+import { ContentView } from '../components/ContentView.jsx';
+import { SettingsView } from '../components/SettingsView.jsx';
+import { SessionConfigurator } from '../components/SessionConfigurator.jsx';
+import { Toast } from '../components/Toast.jsx';
+import { DEFAULT_SESSION_CONFIG } from '../constants.js';
+import {
+  attemptTemplate,
+  clone,
+  collectFilters,
+  computeCategoryPerformance,
+  computeSummary,
+  determineStatus,
+  evaluateSessionResults,
+  normalizeUserData,
+  prepareAttemptRecord,
+  scoreAnswer
+} from '../utils/dataUtils.js';
+import { injectGlobalStyles } from '../styles/globalStyles.js';
+
+export function App() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [baseQuestions, setBaseQuestions] = useState([]);
+  const [userData, setUserData] = useState(null);
+  const [activeView, setActiveView] = useState('dashboard');
+  const [showConfigurator, setShowConfigurator] = useState(false);
+  const [sessionConfig, setSessionConfig] = useState({ ...DEFAULT_SESSION_CONFIG });
+  const [toast, setToast] = useState({ type: 'success', message: '' });
+  const [storagePaths, setStoragePaths] = useState({
+    currentUserDataPath: '',
+    defaultUserDataPath: ''
+  });
+  const [selectedHistorySessionId, setSelectedHistorySessionId] = useState(null);
+
+  useEffect(() => {
+    injectGlobalStyles();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function bootstrap() {
+      try {
+        const payload = await window.gasbank.loadData();
+        if (cancelled) return;
+        setBaseQuestions(payload.questions || []);
+        setUserData(normalizeUserData(payload.userData || {}));
+        if (payload.paths) {
+          setStoragePaths(payload.paths);
+        }
+        setLoading(false);
+      } catch (err) {
+        setError(err);
+        setLoading(false);
+      }
+    }
+    bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const allQuestions = useMemo(() => {
+    if (!userData) return baseQuestions;
+    const custom = userData.customQuestions || [];
+    return [...baseQuestions, ...custom];
+  }, [baseQuestions, userData]);
+
+  const filters = useMemo(() => collectFilters(allQuestions), [allQuestions]);
+
+  const summary = useMemo(() => computeSummary(allQuestions, userData), [allQuestions, userData]);
+
+  const breakdown = useMemo(() => computeCategoryPerformance(allQuestions, userData), [allQuestions, userData]);
+
+  const questionsMap = useMemo(() => {
+    const map = new Map();
+    allQuestions.forEach((question) => map.set(question.id, question));
+    return map;
+  }, [allQuestions]);
+
+  const customQuestionIds = useMemo(() => {
+    const ids = new Set();
+    (userData?.customQuestions || []).forEach((question) => {
+      if (question?.id) {
+        ids.add(question.id);
+      }
+    });
+    return ids;
+  }, [userData]);
+
+  const flaggedSet = useMemo(() => new Set(userData?.flaggedQuestionIds || []), [userData]);
+  const flaggedCount = flaggedSet.size;
+
+  useEffect(() => {
+    if (!selectedHistorySessionId) return;
+    const exists = userData?.sessionHistory?.some((session) => session.id === selectedHistorySessionId);
+    if (!exists) {
+      setSelectedHistorySessionId(null);
+    }
+  }, [selectedHistorySessionId, userData]);
+
+  const activeSession = userData?.activeSession ?? null;
+
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => {
+      setToast((prev) => (prev.message === message ? { type, message: '' } : prev));
+    }, 3200);
+  };
+
+  const refreshStoragePaths = async () => {
+    try {
+      const nextPaths = await window.gasbank.getStoragePaths();
+      if (nextPaths) {
+        setStoragePaths(nextPaths);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('error', 'Failed to read storage paths.');
+    }
+  };
+
+  const updateUserData = (mutator) => {
+    setUserData((prev) => {
+      if (!prev) return prev;
+      const draft = normalizeUserData(clone(prev));
+      mutator(draft);
+      if (Array.isArray(draft.flaggedQuestionIds)) {
+        draft.flaggedQuestionIds = Array.from(new Set(draft.flaggedQuestionIds));
+      }
+      window.gasbank.saveUserData(draft).catch((err) => {
+        console.error(err);
+        showToast('error', 'Failed to save changes locally.');
+      });
+      return draft;
+    });
+  };
+
+  const handleChangeStorageLocation = async () => {
+    const selection = await window.gasbank.chooseUserDataDirectory();
+    if (!selection || selection.canceled) return;
+    try {
+      const result = await window.gasbank.updateUserDataPath({ directory: selection.directory });
+      if (!result?.success) {
+        showToast('error', result?.message || 'Unable to update location.');
+        return;
+      }
+      if (result.userData) {
+        setUserData(normalizeUserData(result.userData));
+      }
+      if (result.paths) {
+        setStoragePaths(result.paths);
+      } else {
+        await refreshStoragePaths();
+      }
+      showToast('success', 'Storage location updated.');
+    } catch (err) {
+      console.error(err);
+      showToast('error', 'Could not change storage location.');
+    }
+  };
+
+  const handleUseDefaultStorage = async () => {
+    if (storagePaths.currentUserDataPath === storagePaths.defaultUserDataPath) {
+      showToast('success', 'Already using the default storage location.');
+      return;
+    }
+    try {
+      const result = await window.gasbank.updateUserDataPath({ useDefault: true });
+      if (!result?.success) {
+        showToast('error', result?.message || 'Unable to update location.');
+        return;
+      }
+      if (result.userData) {
+        setUserData(normalizeUserData(result.userData));
+      }
+      if (result.paths) {
+        setStoragePaths(result.paths);
+      } else {
+        await refreshStoragePaths();
+      }
+      showToast('success', 'Now using default storage location.');
+    } catch (err) {
+      console.error(err);
+      showToast('error', 'Could not switch to default storage.');
+    }
+  };
+
+  const startSessionFromConfig = (config, preselectedIds = null) => {
+    const pool = allQuestions.filter((question) => {
+      if (!config.includeCustom && userData?.customQuestions?.some((custom) => custom.id === question.id)) {
+        return false;
+      }
+      if (config.onlyCustom && !userData?.customQuestions?.some((custom) => custom.id === question.id)) {
+        return false;
+      }
+      if (config.difficulty !== 'all' && question.difficulty?.toLowerCase() !== config.difficulty) {
+        return false;
+      }
+      if (config.selectedCategories.length && !config.selectedCategories.includes(question.category)) {
+        return false;
+      }
+      if (config.selectedSubcategories.length && !config.selectedSubcategories.includes(question.subcategory)) {
+        return false;
+      }
+      if (config.statusFilter === 'unanswered' && determineStatus(userData?.questionStats?.[question.id]) !== 'unanswered') {
+        return false;
+      }
+      if (config.statusFilter === 'incorrect' && determineStatus(userData?.questionStats?.[question.id]) !== 'incorrect') {
+        return false;
+      }
+      const isFlagged = flaggedSet.has(question.id);
+      if (config.flagFilter === 'flagged' && !isFlagged) {
+        return false;
+      }
+      if (config.flagFilter === 'excludeFlagged' && isFlagged) {
+        return false;
+      }
+      return true;
+    });
+
+    const questionIds = preselectedIds || pool.map((question) => question.id);
+    if (!questionIds.length) {
+      showToast('error', 'No questions match this configuration.');
+      return;
+    }
+
+    const ids = [...questionIds];
+    if (config.randomize) {
+      for (let i = ids.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [ids[i], ids[j]] = [ids[j], ids[i]];
+      }
+    }
+
+    const trimmed = ids.slice(0, config.numQuestions);
+    const session = {
+      id: `session-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      questionIds: trimmed,
+      currentIndex: 0,
+      userAnswers: {},
+      mode: config.mode,
+      status: 'active',
+      config
+    };
+
+    updateUserData((draft) => {
+      draft.activeSession = session;
+    });
+    setActiveView('session');
+    showToast('success', `Session launched with ${trimmed.length} questions.`);
+  };
+
+  const handleSelectAnswer = (index) => {
+    if (!activeSession) return;
+    if (activeSession.mode === 'Exam' && activeSession.status === 'completed') return;
+    const questionId = activeSession.questionIds[activeSession.currentIndex];
+    const question = questionsMap.get(questionId);
+    if (!question) return;
+    const currentAnswer = activeSession.userAnswers[questionId];
+    if (activeSession.mode === 'Tutor' && currentAnswer?.choiceIndex != null) {
+      return;
+    }
+    const { isCorrect, correctIndex } = scoreAnswer(question, index);
+    const attempt = attemptTemplate(isCorrect, index);
+    updateUserData((draft) => {
+      if (!draft.activeSession) return;
+      draft.activeSession.userAnswers[questionId] = {
+        choiceIndex: index,
+        isCorrect,
+        correctIndex
+      };
+      if (draft.activeSession.mode === 'Tutor' && (currentAnswer?.choiceIndex == null)) {
+        prepareAttemptRecord(questionId, draft, attempt);
+      }
+    });
+    if (activeSession.mode === 'Tutor' && currentAnswer?.choiceIndex == null) {
+      showToast(isCorrect ? 'success' : 'error', isCorrect ? 'Correct!' : 'Marked for review.');
+    }
+  };
+
+  const handleNavigate = (index) => {
+    if (!activeSession) return;
+    updateUserData((draft) => {
+      if (!draft.activeSession) return;
+      draft.activeSession.currentIndex = Math.max(0, Math.min(index, draft.activeSession.questionIds.length - 1));
+    });
+  };
+
+  const handleFinishSession = () => {
+    if (!activeSession) return;
+    if (activeSession.status === 'completed') {
+      updateUserData((draft) => {
+        draft.activeSession = null;
+      });
+      setActiveView('dashboard');
+      showToast('success', 'Session archived.');
+      return;
+    }
+
+    const answersSnapshot = clone(activeSession.userAnswers || {});
+    const questionIdsSnapshot = [...activeSession.questionIds];
+    const sessionSummary = {
+      ...activeSession,
+      completedAt: new Date().toISOString(),
+      status: 'completed',
+      userAnswers: answersSnapshot,
+      questionIds: questionIdsSnapshot
+    };
+    const updates = evaluateSessionResults(sessionSummary, questionsMap);
+    const answeredCount = Object.values(answersSnapshot).filter((answer) => answer && answer.choiceIndex != null).length;
+    const correctCount = updates.filter((entry) => entry.isCorrect).length;
+    const sessionRecord = {
+      id: sessionSummary.id,
+      createdAt: sessionSummary.createdAt,
+      completedAt: sessionSummary.completedAt,
+      mode: sessionSummary.mode,
+      questionIds: [...questionIdsSnapshot],
+      userAnswers: clone(answersSnapshot),
+      total: questionIdsSnapshot.length,
+      correct: correctCount,
+      answered: answeredCount,
+      config: sessionSummary.config,
+      status: 'completed'
+    };
+
+    updateUserData((draft) => {
+      if (!draft.activeSession) return;
+      draft.sessionHistory = draft.sessionHistory || [];
+      draft.sessionHistory.unshift(sessionRecord);
+      if (draft.sessionHistory.length > 50) {
+        draft.sessionHistory = draft.sessionHistory.slice(0, 50);
+      }
+
+      updates.forEach((entry) => {
+        const attempt = attemptTemplate(entry.isCorrect, entry.choiceIndex ?? -1);
+        prepareAttemptRecord(entry.id, draft, attempt);
+      });
+
+      draft.activeSession = sessionSummary;
+    });
+    showToast('success', 'Session completed. Review your answers.');
+  };
+
+  const handleExitSession = () => {
+    setActiveView('dashboard');
+  };
+
+  const handleResumeSession = () => {
+    if (!userData?.activeSession) {
+      showToast('error', 'No active session to resume.');
+      return;
+    }
+    setActiveView('session');
+  };
+
+  const handleReviewIncorrect = () => {
+    const incorrectIds = allQuestions
+      .filter((question) => determineStatus(userData?.questionStats?.[question.id]) === 'incorrect')
+      .map((question) => question.id);
+    if (!incorrectIds.length) {
+      showToast('success', 'Fantastic! No incorrect questions remain.');
+      return;
+    }
+    const config = { ...DEFAULT_SESSION_CONFIG, statusFilter: 'incorrect', numQuestions: incorrectIds.length };
+    startSessionFromConfig(config, incorrectIds);
+  };
+
+  const handleReviewFlagged = () => {
+    const flaggedIds = userData?.flaggedQuestionIds?.filter((id) => questionsMap.has(id)) || [];
+    if (!flaggedIds.length) {
+      showToast('error', 'No flagged questions to review.');
+      return;
+    }
+    const config = {
+      ...DEFAULT_SESSION_CONFIG,
+      statusFilter: 'all',
+      flagFilter: 'flagged',
+      numQuestions: flaggedIds.length
+    };
+    startSessionFromConfig(config, flaggedIds);
+  };
+
+  const handleResetAll = async () => {
+    const confirmReset = window.confirm('Reset all progress? This cannot be undone.');
+    if (!confirmReset) return;
+    try {
+      const result = await window.gasbank.resetAllProgress();
+      setUserData(normalizeUserData(result.userData));
+      showToast('success', 'Progress reset.');
+    } catch (err) {
+      console.error(err);
+      showToast('error', 'Failed to reset progress.');
+    }
+  };
+
+  const handleResetQuestion = (id) => {
+    updateUserData((draft) => {
+      if (draft.questionStats[id]) {
+        delete draft.questionStats[id];
+      }
+    });
+    showToast('success', `History cleared for ${id}.`);
+  };
+
+  const handleBulkResetQuestions = (ids) => {
+    if (!ids || !ids.length) return;
+    const unique = Array.from(new Set(ids));
+    updateUserData((draft) => {
+      unique.forEach((id) => {
+        if (draft.questionStats[id]) {
+          delete draft.questionStats[id];
+        }
+      });
+    });
+    showToast('success', unique.length === 1 ? 'History cleared for 1 question.' : `History cleared for ${unique.length} questions.`);
+  };
+
+  const handleDeleteCustomQuestions = (ids) => {
+    if (!ids || !ids.length) return;
+    const unique = Array.from(new Set(ids));
+    const toDelete = new Set(unique);
+    updateUserData((draft) => {
+      draft.customQuestions = (draft.customQuestions || []).filter((question) => !toDelete.has(question.id));
+      unique.forEach((id) => {
+        if (draft.questionStats[id]) {
+          delete draft.questionStats[id];
+        }
+      });
+      if (Array.isArray(draft.flaggedQuestionIds)) {
+        draft.flaggedQuestionIds = draft.flaggedQuestionIds.filter((id) => !toDelete.has(id));
+      }
+      if (draft.activeSession) {
+        draft.activeSession.questionIds = draft.activeSession.questionIds.filter((id) => !toDelete.has(id));
+        if (draft.activeSession.userAnswers) {
+          unique.forEach((id) => {
+            delete draft.activeSession.userAnswers[id];
+          });
+        }
+        if (!draft.activeSession.questionIds.length) {
+          draft.activeSession = null;
+        } else if (draft.activeSession.currentIndex >= draft.activeSession.questionIds.length) {
+          draft.activeSession.currentIndex = Math.max(0, draft.activeSession.questionIds.length - 1);
+        }
+      }
+    });
+    showToast('success', unique.length === 1 ? 'Custom question deleted.' : `${unique.length} custom questions deleted.`);
+  };
+
+  const handleToggleFlag = (id) => {
+    updateUserData((draft) => {
+      draft.flaggedQuestionIds = draft.flaggedQuestionIds || [];
+      const index = draft.flaggedQuestionIds.indexOf(id);
+      if (index >= 0) {
+        draft.flaggedQuestionIds.splice(index, 1);
+      } else {
+        draft.flaggedQuestionIds.push(id);
+      }
+    });
+    const isNowFlagged = !flaggedSet.has(id);
+    showToast('success', isNowFlagged ? 'Question flagged for review.' : 'Flag removed.');
+  };
+
+  const handleSelectHistorySession = (sessionId) => {
+    setSelectedHistorySessionId((prev) => (prev === sessionId ? null : sessionId));
+  };
+
+  const handleDeleteSession = (sessionId) => {
+    const exists = userData?.sessionHistory?.some((session) => session.id === sessionId);
+    if (!exists) {
+      showToast('error', 'Session not found.');
+      return;
+    }
+    const confirmDelete = window.confirm('Delete this session? This cannot be undone.');
+    if (!confirmDelete) return;
+    updateUserData((draft) => {
+      draft.sessionHistory = (draft.sessionHistory || []).filter((session) => session.id !== sessionId);
+      if (draft.activeSession && draft.activeSession.id === sessionId) {
+        draft.activeSession = null;
+      }
+    });
+    if (selectedHistorySessionId === sessionId) {
+      setSelectedHistorySessionId(null);
+    }
+    showToast('success', 'Session deleted.');
+  };
+
+  const handleCreateQuestion = (question) => {
+    const existing = allQuestions.find((entry) => entry.id === question.id && question.id);
+    if (existing && question.id) {
+      showToast('error', 'Question ID already exists. Choose a unique ID.');
+      return;
+    }
+
+    const trimmedImage = question.image?.trim();
+    const trimmedImageAlt = question.imageAlt?.trim();
+    const finalQuestion = {
+      ...question,
+      id: question.id?.trim() || `CUS-${Date.now()}`,
+      difficulty: question.difficulty?.toLowerCase() || 'medium',
+      educationalObjective: question.educationalObjective?.trim() || '',
+      answers: question.answers.map((answer, index) => ({
+        ...answer,
+        isCorrect: answer.isCorrect || index === 0
+      }))
+    };
+    if (trimmedImage) {
+      finalQuestion.image = trimmedImage;
+    }
+    if (trimmedImageAlt) {
+      finalQuestion.imageAlt = trimmedImageAlt;
+    }
+
+    updateUserData((draft) => {
+      draft.customQuestions = draft.customQuestions || [];
+      draft.customQuestions.push(finalQuestion);
+    });
+    showToast('success', 'Custom question added.');
+  };
+
+  const handleImport = async () => {
+    const result = await window.gasbank.importQuestions();
+    if (!result || result.canceled) return;
+    if (result.error) {
+      showToast('error', `Failed to import: ${result.error}`);
+      return;
+    }
+    if (result.format === 'csv') {
+      showToast('error', 'CSV import is not yet supported. Please import JSON.');
+      return;
+    }
+    try {
+      const incoming = Array.isArray(result.data) ? result.data : [];
+      if (!incoming.length) {
+        showToast('error', 'No questions found in file.');
+        return;
+      }
+      updateUserData((draft) => {
+        draft.customQuestions = draft.customQuestions || [];
+        incoming.forEach((question) => {
+          if (question.id && draft.customQuestions.some((entry) => entry.id === question.id)) {
+            const uniqueId = `CUS-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            draft.customQuestions.push({ ...question, id: uniqueId });
+          } else {
+            draft.customQuestions.push(question);
+          }
+        });
+      });
+      showToast('success', `${incoming.length} custom questions imported.`);
+    } catch (err) {
+      console.error(err);
+      showToast('error', 'Import failed. Ensure the file contains valid JSON.');
+    }
+  };
+
+  const handleExport = async () => {
+    const payload = userData?.customQuestions || [];
+    if (!payload.length) {
+      showToast('error', 'No custom questions to export.');
+      return;
+    }
+    const result = await window.gasbank.exportCustomQuestions(payload);
+    if (result?.canceled) return;
+    showToast('success', `Exported ${payload.length} questions.`);
+  };
+
+  if (loading) {
+    return (
+      <div className="loading">
+        <span>Loading question bank…</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="empty-state" style={{ height: '100vh', border: 'none' }}>
+        Failed to load application: {error.message}
+      </div>
+    );
+  }
+
+  const currentQuestionId = activeSession
+    ? activeSession.questionIds[activeSession.currentIndex ?? 0]
+    : null;
+  const currentQuestion = currentQuestionId ? questionsMap.get(currentQuestionId) : null;
+
+  return (
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="brand">Anesthesiology Question Bank</div>
+        <nav className="nav-buttons">
+          <button
+            className={`nav-button ${activeView === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setActiveView('dashboard')}
+          >
+            Dashboard
+          </button>
+          <button
+            className={`nav-button ${activeView === 'session' ? 'active' : ''}`}
+            onClick={() => setActiveView('session')}
+          >
+            Session
+          </button>
+          <button
+            className={`nav-button ${activeView === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveView('history')}
+          >
+            History
+          </button>
+          <button
+            className={`nav-button ${activeView === 'content' ? 'active' : ''}`}
+            onClick={() => setActiveView('content')}
+          >
+            Content
+          </button>
+          <button
+            className={`nav-button ${activeView === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveView('settings')}
+          >
+            Settings
+          </button>
+        </nav>
+      </header>
+
+      <main className="main">
+        {activeView === 'dashboard' && (
+          <Dashboard
+            summary={summary}
+            breakdown={breakdown}
+            onStartSession={() => {
+              setSessionConfig({ ...DEFAULT_SESSION_CONFIG });
+              setShowConfigurator(true);
+            }}
+            onReviewIncorrect={handleReviewIncorrect}
+            onReviewFlagged={handleReviewFlagged}
+            onResumeSession={handleResumeSession}
+            hasActiveSession={!!userData?.activeSession}
+            hasFlagged={flaggedCount > 0}
+            onOpenConfig={() => setShowConfigurator(true)}
+          />
+        )}
+        {activeView === 'session' && (
+          <SessionView
+            session={activeSession}
+            question={currentQuestion}
+            questionIndex={activeSession?.currentIndex ?? 0}
+            totalQuestions={activeSession?.questionIds.length ?? 0}
+            onSelectAnswer={handleSelectAnswer}
+            onNavigate={handleNavigate}
+            onFinish={handleFinishSession}
+            onExit={handleExitSession}
+            onToggleFlag={handleToggleFlag}
+            isFlagged={currentQuestion ? flaggedSet.has(currentQuestion.id) : false}
+            flaggedSet={flaggedSet}
+          />
+        )}
+        {activeView === 'history' && (
+          <HistoryView
+            questionsMap={questionsMap}
+            userData={userData}
+            onResetAll={handleResetAll}
+            selectedSessionId={selectedHistorySessionId}
+            onSelectSession={handleSelectHistorySession}
+            onDeleteSession={handleDeleteSession}
+          />
+        )}
+        {activeView === 'content' && (
+          <ContentView
+            allQuestions={allQuestions}
+            userData={userData}
+            filters={filters}
+            customQuestionIds={customQuestionIds}
+            flaggedSet={flaggedSet}
+            onCreateQuestion={handleCreateQuestion}
+            onImport={handleImport}
+            onExport={handleExport}
+            onResetQuestion={handleResetQuestion}
+            onBulkReset={handleBulkResetQuestions}
+            onDeleteCustomQuestions={handleDeleteCustomQuestions}
+            onToggleFlag={handleToggleFlag}
+          />
+        )}
+        {activeView === 'settings' && (
+          <SettingsView
+            paths={storagePaths}
+            onChooseLocation={handleChangeStorageLocation}
+            onUseDefault={handleUseDefaultStorage}
+          />
+        )}
+      </main>
+
+      {showConfigurator && (
+        <SessionConfigurator
+          filters={filters}
+          config={sessionConfig}
+          onUpdate={(config) => setSessionConfig(config)}
+          onCancel={() => setShowConfigurator(false)}
+          onCreate={(config) => {
+            setShowConfigurator(false);
+            startSessionFromConfig(config);
+          }}
+        />
+      )}
+
+      <Toast type={toast.type} message={toast.message} />
+    </div>
+  );
+}
