@@ -5,6 +5,8 @@ const fsp = require('fs/promises');
 
 const DATA_DIR = path.join(app.getAppPath(), 'data');
 const QUESTIONS_FILE = path.join(DATA_DIR, 'questions.json');
+const CONFIG_FILE = path.join(app.getPath('userData'), 'gasbank.config.json');
+const DEFAULT_USER_DATA_PATH = path.join(app.getPath('userData'), 'userData.json');
 
 const defaultUserData = {
   userSettings: {
@@ -17,10 +19,38 @@ const defaultUserData = {
   notes: {}
 };
 
-const getUserDataPath = () => path.join(app.getPath('userData'), 'userData.json');
+let cachedUserDataPath = null;
+
+async function ensureConfigDirectory() {
+  await fsp.mkdir(path.dirname(CONFIG_FILE), { recursive: true });
+}
+
+async function resolveUserDataPath() {
+  if (cachedUserDataPath) return cachedUserDataPath;
+
+  try {
+    const raw = await fsp.readFile(CONFIG_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (parsed.userDataPath) {
+      cachedUserDataPath = parsed.userDataPath;
+      return cachedUserDataPath;
+    }
+  } catch (err) {
+    // config missing or unreadable, fall back to default
+  }
+
+  cachedUserDataPath = DEFAULT_USER_DATA_PATH;
+  return cachedUserDataPath;
+}
+
+async function persistUserDataPath(targetPath) {
+  cachedUserDataPath = targetPath;
+  await ensureConfigDirectory();
+  await fsp.writeFile(CONFIG_FILE, JSON.stringify({ userDataPath: targetPath }, null, 2), 'utf-8');
+}
 
 async function ensureUserDataFile() {
-  const userDataPath = getUserDataPath();
+  const userDataPath = await resolveUserDataPath();
   try {
     await fsp.access(userDataPath, fs.constants.F_OK);
   } catch (err) {
@@ -45,7 +75,8 @@ async function loadQuestions() {
 }
 
 async function saveUserData(data) {
-  const userDataPath = getUserDataPath();
+  const userDataPath = await resolveUserDataPath();
+  await fsp.mkdir(path.dirname(userDataPath), { recursive: true });
   await fsp.writeFile(userDataPath, JSON.stringify(data, null, 2), 'utf-8');
 }
 
@@ -82,7 +113,15 @@ app.on('window-all-closed', () => {
 
 ipcMain.handle('data:load', async () => {
   const [questions, userData] = await Promise.all([loadQuestions(), ensureUserDataFile()]);
-  return { questions, userData };
+  const userDataPath = await resolveUserDataPath();
+  return {
+    questions,
+    userData,
+    paths: {
+      currentUserDataPath: userDataPath,
+      defaultUserDataPath: DEFAULT_USER_DATA_PATH
+    }
+  };
 });
 
 ipcMain.handle('data:saveUserData', async (_event, data) => {
@@ -93,6 +132,60 @@ ipcMain.handle('data:saveUserData', async (_event, data) => {
 ipcMain.handle('data:resetAll', async () => {
   await saveUserData(defaultUserData);
   return { success: true, userData: { ...defaultUserData } };
+});
+
+ipcMain.handle('settings:getPaths', async () => {
+  const currentUserDataPath = await resolveUserDataPath();
+  return {
+    currentUserDataPath,
+    defaultUserDataPath: DEFAULT_USER_DATA_PATH
+  };
+});
+
+ipcMain.handle('settings:chooseUserDataDirectory', async () => {
+  const result = await dialog.showOpenDialog({
+    title: 'Select data directory',
+    buttonLabel: 'Choose',
+    properties: ['openDirectory', 'createDirectory']
+  });
+
+  if (result.canceled || !result.filePaths?.length) {
+    return { canceled: true };
+  }
+
+  return { canceled: false, directory: result.filePaths[0] };
+});
+
+ipcMain.handle('settings:updateUserDataPath', async (_event, options) => {
+  const { directory, useDefault } = options || {};
+
+  const targetPath = useDefault
+    ? DEFAULT_USER_DATA_PATH
+    : directory
+      ? path.join(directory, 'userData.json')
+      : null;
+
+  if (!targetPath) {
+    return { success: false, message: 'No directory selected.' };
+  }
+
+  const currentPath = await resolveUserDataPath();
+  const userData = await ensureUserDataFile();
+
+  await fsp.mkdir(path.dirname(targetPath), { recursive: true });
+  await fsp.writeFile(targetPath, JSON.stringify(userData, null, 2), 'utf-8');
+  await persistUserDataPath(targetPath);
+
+  return {
+    success: true,
+    userDataPath: targetPath,
+    userData,
+    paths: {
+      currentUserDataPath: targetPath,
+      defaultUserDataPath: DEFAULT_USER_DATA_PATH
+    },
+    updated: targetPath !== currentPath
+  };
 });
 
 ipcMain.handle('dialog:importQuestions', async () => {

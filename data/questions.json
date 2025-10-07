@@ -27,7 +27,8 @@
         "explanation": "Thiopental is an ultra-short acting barbiturate without appreciable analgesic properties."
       }
     ],
-    "didactic": "Most intravenous induction agents such as propofol and thiopental provide hypnosis without analgesia. Ketamine is unique: by antagonizing NMDA receptors along ascending pain pathways it confers significant analgesic benefit while maintaining sympathetic tone and airway reflexes."
+    "didactic": "Most intravenous induction agents such as propofol and thiopental provide hypnosis without analgesia. Ketamine is unique: by antagonizing NMDA receptors along ascending pain pathways it confers significant analgesic benefit while maintaining sympathetic tone and airway reflexes.",
+    "educationalObjective": "Recognize ketamine as the only commonly used intravenous induction agent that provides clinically significant analgesia."
   },
   {
     "id": "ANES002",
@@ -57,7 +58,8 @@
         "explanation": "Succinylcholine is a triggering agent for malignant hyperthermia; however, the risk is unrelated to extrajunctional receptors."
       }
     ],
-    "didactic": "Conditions such as burns, neuromuscular disorders, and prolonged immobilization upregulate extrajunctional acetylcholine receptors. Succinylcholine-induced depolarization opens these channels, leading to substantial potassium efflux and life-threatening hyperkalemia."
+    "didactic": "Conditions such as burns, neuromuscular disorders, and prolonged immobilization upregulate extrajunctional acetylcholine receptors. Succinylcholine-induced depolarization opens these channels, leading to substantial potassium efflux and life-threatening hyperkalemia.",
+    "educationalObjective": "Identify the risk of life-threatening hyperkalemia when succinylcholine is administered to patients with upregulated extrajunctional acetylcholine receptors."
   },
   {
     "id": "ANES003",
@@ -65,6 +67,8 @@
     "subcategory": "Airway Management",
     "difficulty": "easy",
     "questionText": "Which of the following is the most reliable predictor of a difficult mask ventilation?",
+    "image": "cormack_lehane_1.jpg",
+    "imageAlt": "Cormack-Lehane grade I laryngoscopic view illustration",
     "answers": [
       {
         "text": "Mallampati class III",
@@ -87,7 +91,8 @@
         "explanation": "Obesity is a risk factor but by itself is less predictive than facial hair, edentulism, or limited mandibular protrusion."
       }
     ],
-    "didactic": "Risk factors for difficult mask ventilation include facial hair, obesity, edentulism, advanced age, and a history of snoring or obstructive sleep apnea. Among the available options, a thick beard is the most reliable predictor because it compromises mask seal."
+    "didactic": "Risk factors for difficult mask ventilation include facial hair, obesity, edentulism, advanced age, and a history of snoring or obstructive sleep apnea. Among the available options, a thick beard is the most reliable predictor because it compromises mask seal.",
+    "educationalObjective": "Recall that facial hair is a strong predictor of difficult mask ventilation due to poor mask seal."
   },
   {
     "id": "ANES004",
@@ -117,7 +122,8 @@
         "explanation": "Protamine-heparin complexes can cause acute pulmonary hypertension with right ventricular failure, increasing CVP while widening pulse pressure due to severe pulmonary pressures."
       }
     ],
-    "didactic": "Protamine reactions manifest in three forms. Type III reactions cause acute pulmonary hypertension and right ventricular failure, resulting in hypotension, elevated CVP, and wide pulse pressure. Prompt recognition and management—including inotropic support and consideration of methylene blue—is critical."
+    "didactic": "Protamine reactions manifest in three forms. Type III reactions cause acute pulmonary hypertension and right ventricular failure, resulting in hypotension, elevated CVP, and wide pulse pressure. Prompt recognition and management—including inotropic support and consideration of methylene blue—is critical.",
+    "educationalObjective": "Recognize protamine type III reaction as a cause of acute pulmonary hypertension and right ventricular failure during separation from bypass."
   },
   {
     "id": "ANES005",
@@ -147,6 +153,7 @@
         "explanation": "Holding chronic opioids can precipitate withdrawal and worsen postoperative pain control."
       }
     ],
-    "didactic": "Opioid-induced hyperalgesia is mediated by NMDA receptor activation and central sensitization. Multimodal analgesia with low-dose ketamine, alpha-2 agonists, or magnesium offers benefit. Abrupt cessation of baseline opioids is contraindicated."
+    "didactic": "Opioid-induced hyperalgesia is mediated by NMDA receptor activation and central sensitization. Multimodal analgesia with low-dose ketamine, alpha-2 agonists, or magnesium offers benefit. Abrupt cessation of baseline opioids is contraindicated.",
+    "educationalObjective": "Select ketamine as an evidence-based adjunct to mitigate opioid-induced hyperalgesia in opioid-tolerant patients."
   }
 ]

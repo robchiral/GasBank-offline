@@ -500,7 +500,7 @@ const DEFAULT_SESSION_CONFIG = {
   selectedCategories: [],
   selectedSubcategories: [],
   difficulty: 'all',
-  statusFilter: 'all',
+  statusFilter: 'unanswered',
   includeCustom: true,
   onlyCustom: false
 };
@@ -636,12 +636,16 @@ function evaluateSessionResults(session, questionsMap) {
 }
 
 function derivePaletteClass(entry, current, session) {
-  if (entry === current) return 'palette-item current';
+  let className = 'palette-item';
+  if (entry === current) className += ' current';
   const answer = session.userAnswers[entry];
-  if (!answer) return 'palette-item';
-  if (answer.isCorrect) return 'palette-item correct';
-  if (answer.choiceIndex != null) return 'palette-item incorrect';
-  return 'palette-item answered';
+  if (!answer) return className;
+  if (session.mode === 'Exam' && session.status !== 'completed') {
+    return className;
+  }
+  if (answer.isCorrect) return `${className} correct`;
+  if (answer.choiceIndex != null) return `${className} incorrect`;
+  return `${className} answered`;
 }
 
 function PieChart({ data }) {
@@ -739,11 +743,6 @@ function Dashboard({
           <h1>Welcome back</h1>
           <p className="section-subtitle">Track your mastery and jump into the next study block.</p>
         </div>
-        <div className="chips">
-          <div className="chip">Offline ready</div>
-          <div className="chip">Local data</div>
-          <div className="chip">Rapid review</div>
-        </div>
       </div>
 
       <div className="grid two">
@@ -806,13 +805,9 @@ function SessionView({
   questionIndex,
   totalQuestions,
   onSelectAnswer,
-  onSubmitAnswer,
   onNavigate,
   onFinish,
-  onExit,
-  allowReveal,
-  onToggleReveal,
-  answersLocked
+  onExit
 }) {
   if (!session || !question) {
     return <div className="empty-state">No active session. Start a new study session from the dashboard.</div>;
@@ -820,7 +815,10 @@ function SessionView({
 
   const currentAnswer = session.userAnswers[question.id] || null;
   const { correctIndex } = scoreAnswer(question, currentAnswer?.choiceIndex ?? -1);
-  const showFeedback = session.mode === 'Tutor' ? currentAnswer?.choiceIndex != null : session.status === 'completed' || allowReveal;
+  const showFeedback = session.mode === 'Tutor'
+    ? currentAnswer?.choiceIndex != null
+    : session.status === 'completed';
+  const imageSrc = question.image ? `../data/images/${question.image}` : null;
 
   return (
     <div className="session-container">
@@ -831,10 +829,20 @@ function SessionView({
           {question.difficulty && <span className="pill">{question.difficulty.toUpperCase()}</span>}
           <span>{question.category} ▸ {question.subcategory}</span>
         </div>
+        {session.mode === 'Exam' && session.status === 'active' && (
+          <div style={{ marginTop: 12, color: 'var(--text-muted)', fontSize: 13 }}>
+            Answers save automatically; explanations unlock when you end the session.
+          </div>
+        )}
         <div>
           <h2 style={{ marginBottom: 10 }}>{question.questionText}</h2>
           {question.stem && <p>{question.stem}</p>}
         </div>
+        {imageSrc && (
+          <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(56, 189, 248, 0.18)', maxWidth: 480 }}>
+            <img src={imageSrc} alt={question.imageAlt || 'Question illustration'} style={{ display: 'block', width: '100%' }} />
+          </div>
+        )}
         <div className="answers">
           {question.answers.map((answer, index) => {
             const isSelected = currentAnswer?.choiceIndex === index;
@@ -864,21 +872,19 @@ function SessionView({
             <p style={{ whiteSpace: 'pre-line', color: 'var(--text-muted)', lineHeight: 1.6 }}>{question.didactic}</p>
           </div>
         )}
-        <div style={{ display: 'flex', gap: 12 }}>
+        {showFeedback && question.educationalObjective && (
+          <div className="card" style={{ background: 'rgba(15, 23, 42, 0.6)' }}>
+            <h3 style={{ marginTop: 0 }}>Educational Objective</h3>
+            <p style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>{question.educationalObjective}</p>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button className="button secondary" onClick={() => onNavigate(questionIndex - 1)} disabled={questionIndex === 0}>
             Previous
           </button>
           <button className="button secondary" onClick={() => onNavigate(questionIndex + 1)} disabled={questionIndex === totalQuestions - 1}>
             Next
           </button>
-          <button className="button" onClick={onSubmitAnswer} disabled={currentAnswer?.choiceIndex == null || answersLocked}>
-            Submit Answer
-          </button>
-          {session.mode === 'Exam' && session.status === 'active' && (
-            <button className="button secondary" onClick={onToggleReveal}>
-              Review Answers
-            </button>
-          )}
           <button className="button danger" onClick={onFinish}>
             End Session
           </button>
@@ -1057,13 +1063,16 @@ function ContentView({
     subcategory: '',
     difficulty: 'medium',
     questionText: '',
+    image: '',
+    imageAlt: '',
     answers: [
       { text: '', isCorrect: true, explanation: '' },
       { text: '', isCorrect: false, explanation: '' },
       { text: '', isCorrect: false, explanation: '' },
       { text: '', isCorrect: false, explanation: '' }
     ],
-    didactic: ''
+    didactic: '',
+    educationalObjective: ''
   });
 
   const handleAnswerChange = (index, patch) => {
@@ -1090,13 +1099,16 @@ function ContentView({
       ...prev,
       id: '',
       questionText: '',
+      image: '',
+      imageAlt: '',
       answers: prev.answers.map((answer, idx) => ({
         ...answer,
         text: '',
         explanation: '',
         isCorrect: idx === 0
       })),
-      didactic: ''
+      didactic: '',
+      educationalObjective: ''
     }));
   };
 
@@ -1174,6 +1186,16 @@ function ContentView({
                   <span>{question.category} ▸ {question.subcategory}</span>
                   <span>Difficulty: {question.difficulty?.toUpperCase() || 'N/A'}</span>
                 </div>
+                {question.image && (
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                    Image: <code>{question.image}</code>
+                  </div>
+                )}
+                {question.educationalObjective && (
+                  <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                    Objective: {question.educationalObjective}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 12 }}>
                   <button className="button secondary" onClick={() => onResetQuestion(question.id)}>
                     Reset History
@@ -1222,6 +1244,25 @@ function ContentView({
             <input
               value={newQuestion.subcategory}
               onChange={(event) => setNewQuestion((prev) => ({ ...prev, subcategory: event.target.value }))}
+            />
+          </label>
+        </div>
+        <div className="form-row">
+          <label>
+            Image filename (optional)
+            <input
+              value={newQuestion.image}
+              onChange={(event) => setNewQuestion((prev) => ({ ...prev, image: event.target.value }))}
+              placeholder="e.g., arterial_line_ultrasound.png"
+            />
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Place image under <code>data/images</code>.</span>
+          </label>
+          <label>
+            Image alt text
+            <input
+              value={newQuestion.imageAlt}
+              onChange={(event) => setNewQuestion((prev) => ({ ...prev, imageAlt: event.target.value }))}
+              placeholder="Describe the image for accessibility"
             />
           </label>
         </div>
@@ -1284,10 +1325,63 @@ function ContentView({
             onChange={(event) => setNewQuestion((prev) => ({ ...prev, didactic: event.target.value }))}
           />
         </label>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 22 }}>
+          Educational Objective
+          <textarea
+            placeholder="One sentence objective that captures the learning point"
+            value={newQuestion.educationalObjective}
+            onChange={(event) => setNewQuestion((prev) => ({ ...prev, educationalObjective: event.target.value }))}
+          />
+        </label>
 
         <button className="button" onClick={submitQuestion}>
           Save Question
         </button>
+      </div>
+    </div>
+  );
+}
+
+function SettingsView({ paths, onChooseLocation, onUseDefault }) {
+  const isDefault = paths.currentUserDataPath === paths.defaultUserDataPath;
+
+  return (
+    <div className="grid">
+      <div className="section-title">
+        <div>
+          <h1>Settings</h1>
+          <p className="section-subtitle">Control where your study data is stored.</p>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Storage Location</h2>
+        <p style={{ color: 'var(--text-muted)' }}>
+          GasBank keeps your progress inside a single <code>userData.json</code> file. You can relocate this file to
+          match your backup workflow.
+        </p>
+        <div style={{ margin: '18px 0', padding: 18, borderRadius: 14, background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(56,189,248,0.14)' }}>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+            Current path
+          </div>
+          <code style={{ fontSize: 14, wordBreak: 'break-all', color: 'var(--text)' }}>{paths.currentUserDataPath || 'Unknown'}</code>
+        </div>
+        {!isDefault && (
+          <div style={{ marginBottom: 16, fontSize: 13, color: 'var(--text-muted)' }}>
+            Default location: <code>{paths.defaultUserDataPath}</code>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <button className="button secondary" onClick={onChooseLocation}>
+            Choose New Location
+          </button>
+          <button className="button secondary" onClick={onUseDefault} disabled={isDefault}>
+            Use Default Location
+          </button>
+        </div>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 18 }}>
+          Tip: place the data file inside a synced folder so your progress follows you.
+        </p>
       </div>
     </div>
   );
@@ -1469,7 +1563,10 @@ function App() {
   const [showConfigurator, setShowConfigurator] = useState(false);
   const [sessionConfig, setSessionConfig] = useState(DEFAULT_SESSION_CONFIG);
   const [toast, setToast] = useState({ type: 'success', message: '' });
-  const [examReveal, setExamReveal] = useState(false);
+  const [storagePaths, setStoragePaths] = useState({
+    currentUserDataPath: '',
+    defaultUserDataPath: ''
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -1479,6 +1576,9 @@ function App() {
         if (cancelled) return;
         setBaseQuestions(payload.questions || []);
         setUserData(payload.userData || clone(null));
+        if (payload.paths) {
+          setStoragePaths(payload.paths);
+        }
         setLoading(false);
       } catch (err) {
         setError(err);
@@ -1518,6 +1618,18 @@ function App() {
     }, 3200);
   };
 
+  const refreshStoragePaths = async () => {
+    try {
+      const nextPaths = await window.gasbank.getStoragePaths();
+      if (nextPaths) {
+        setStoragePaths(nextPaths);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('error', 'Failed to read storage paths.');
+    }
+  };
+
   const updateUserData = (mutator) => {
     setUserData((prev) => {
       if (!prev) return prev;
@@ -1529,6 +1641,56 @@ function App() {
       });
       return draft;
     });
+  };
+
+  const handleChangeStorageLocation = async () => {
+    const selection = await window.gasbank.chooseUserDataDirectory();
+    if (!selection || selection.canceled) return;
+    try {
+      const result = await window.gasbank.updateUserDataPath({ directory: selection.directory });
+      if (!result?.success) {
+        showToast('error', result?.message || 'Unable to update location.');
+        return;
+      }
+      if (result.userData) {
+        setUserData(result.userData);
+      }
+      if (result.paths) {
+        setStoragePaths(result.paths);
+      } else {
+        await refreshStoragePaths();
+      }
+      showToast('success', 'Storage location updated.');
+    } catch (err) {
+      console.error(err);
+      showToast('error', 'Could not change storage location.');
+    }
+  };
+
+  const handleUseDefaultStorage = async () => {
+    if (storagePaths.currentUserDataPath === storagePaths.defaultUserDataPath) {
+      showToast('success', 'Already using the default storage location.');
+      return;
+    }
+    try {
+      const result = await window.gasbank.updateUserDataPath({ useDefault: true });
+      if (!result?.success) {
+        showToast('error', result?.message || 'Unable to update location.');
+        return;
+      }
+      if (result.userData) {
+        setUserData(result.userData);
+      }
+      if (result.paths) {
+        setStoragePaths(result.paths);
+      } else {
+        await refreshStoragePaths();
+      }
+      showToast('success', 'Now using default storage location.');
+    } catch (err) {
+      console.error(err);
+      showToast('error', 'Could not switch to default storage.');
+    }
   };
 
   const startSessionFromConfig = (config, preselectedIds = null) => {
@@ -1586,53 +1748,36 @@ function App() {
     updateUserData((draft) => {
       draft.activeSession = session;
     });
-    setExamReveal(false);
     setActiveView('session');
     showToast('success', `Session launched with ${trimmed.length} questions.`);
-  };
-
-  const handleSubmitAnswer = () => {
-    if (!activeSession) return;
-    if (activeSession.mode === 'Exam' && activeSession.status === 'completed') return;
-    const questionId = activeSession.questionIds[activeSession.currentIndex];
-    const question = questionsMap.get(questionId);
-    const selected = activeSession.userAnswers[questionId];
-    if (!question || !selected || selected.choiceIndex == null) return;
-
-    const { isCorrect, correctIndex } = scoreAnswer(question, selected.choiceIndex);
-    const attempt = attemptTemplate(isCorrect, selected.choiceIndex);
-
-    updateUserData((draft) => {
-      if (!draft.activeSession) return;
-      draft.activeSession.userAnswers[questionId] = {
-        choiceIndex: selected.choiceIndex,
-        isCorrect,
-        correctIndex
-      };
-      if (draft.activeSession.mode === 'Tutor') {
-        prepareAttemptRecord(questionId, draft, attempt);
-      } else if (draft.activeSession.mode === 'Exam') {
-        // queue attempts for later; already stored on session
-      }
-    });
-    showToast(selected.isCorrect ? 'success' : 'error', isCorrect ? 'Correct!' : 'Marked for review.');
   };
 
   const handleSelectAnswer = (index) => {
     if (!activeSession) return;
     if (activeSession.mode === 'Exam' && activeSession.status === 'completed') return;
     const questionId = activeSession.questionIds[activeSession.currentIndex];
+    const question = questionsMap.get(questionId);
+    if (!question) return;
+    const currentAnswer = activeSession.userAnswers[questionId];
+    if (activeSession.mode === 'Tutor' && currentAnswer?.choiceIndex != null) {
+      return;
+    }
+    const { isCorrect, correctIndex } = scoreAnswer(question, index);
+    const attempt = attemptTemplate(isCorrect, index);
     updateUserData((draft) => {
       if (!draft.activeSession) return;
-      const question = questionsMap.get(questionId);
-      if (!question) return;
-      const { isCorrect, correctIndex } = scoreAnswer(question, index);
       draft.activeSession.userAnswers[questionId] = {
         choiceIndex: index,
         isCorrect,
         correctIndex
       };
+      if (draft.activeSession.mode === 'Tutor' && (currentAnswer?.choiceIndex == null)) {
+        prepareAttemptRecord(questionId, draft, attempt);
+      }
     });
+    if (activeSession.mode === 'Tutor' && currentAnswer?.choiceIndex == null) {
+      showToast(isCorrect ? 'success' : 'error', isCorrect ? 'Correct!' : 'Marked for review.');
+    }
   };
 
   const handleNavigate = (index) => {
@@ -1679,7 +1824,6 @@ function App() {
 
       draft.activeSession = sessionSummary;
     });
-    setExamReveal(true);
     showToast('success', 'Session completed. Review your answers.');
   };
 
@@ -1736,15 +1880,28 @@ function App() {
       return;
     }
 
+    const trimmedImage = question.image?.trim();
+    const trimmedImageAlt = question.imageAlt?.trim();
     const finalQuestion = {
       ...question,
       id: question.id?.trim() || `CUS-${Date.now()}`,
       difficulty: question.difficulty?.toLowerCase() || 'medium',
+      educationalObjective: question.educationalObjective?.trim() || '',
       answers: question.answers.map((answer, index) => ({
         ...answer,
         isCorrect: answer.isCorrect || index === 0
       }))
     };
+    if (trimmedImage) {
+      finalQuestion.image = trimmedImage;
+    } else {
+      delete finalQuestion.image;
+    }
+    if (trimmedImageAlt) {
+      finalQuestion.imageAlt = trimmedImageAlt;
+    } else {
+      delete finalQuestion.imageAlt;
+    }
 
     updateUserData((draft) => {
       draft.customQuestions = draft.customQuestions || [];
@@ -1815,9 +1972,10 @@ function App() {
     );
   }
 
-  const currentQuestionId = activeSession?.questionIds[activeSession.currentIndex];
+  const currentQuestionId = activeSession
+    ? activeSession.questionIds[activeSession.currentIndex ?? 0]
+    : null;
   const currentQuestion = currentQuestionId ? questionsMap.get(currentQuestionId) : null;
-  const answersLocked = activeSession?.mode === 'Exam' && activeSession?.status === 'completed';
 
   return (
     <div className="app-shell">
@@ -1848,6 +2006,12 @@ function App() {
           >
             Content
           </button>
+          <button
+            className={`nav-button ${activeView === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveView('settings')}
+          >
+            Settings
+          </button>
         </nav>
       </header>
 
@@ -1857,7 +2021,7 @@ function App() {
             summary={summary}
             breakdown={breakdown}
             onStartSession={() => {
-              setSessionConfig(DEFAULT_SESSION_CONFIG);
+              setSessionConfig({ ...DEFAULT_SESSION_CONFIG });
               setShowConfigurator(true);
             }}
             onReviewIncorrect={handleReviewIncorrect}
@@ -1873,13 +2037,9 @@ function App() {
             questionIndex={activeSession?.currentIndex ?? 0}
             totalQuestions={activeSession?.questionIds.length ?? 0}
             onSelectAnswer={handleSelectAnswer}
-            onSubmitAnswer={handleSubmitAnswer}
             onNavigate={handleNavigate}
             onFinish={handleFinishSession}
             onExit={handleExitSession}
-            allowReveal={examReveal}
-            onToggleReveal={() => setExamReveal((prev) => !prev)}
-            answersLocked={answersLocked}
           />
         )}
         {activeView === 'stats' && (
@@ -1899,6 +2059,13 @@ function App() {
             onImport={handleImport}
             onExport={handleExport}
             onResetQuestion={handleResetQuestion}
+          />
+        )}
+        {activeView === 'settings' && (
+          <SettingsView
+            paths={storagePaths}
+            onChooseLocation={handleChangeStorageLocation}
+            onUseDefault={handleUseDefaultStorage}
           />
         )}
       </main>
