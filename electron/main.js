@@ -16,7 +16,8 @@ const defaultUserData = {
   questionStats: {},
   activeSession: null,
   sessionHistory: [],
-  notes: {}
+  notes: {},
+  flaggedQuestionIds: []
 };
 
 let cachedUserDataPath = null;

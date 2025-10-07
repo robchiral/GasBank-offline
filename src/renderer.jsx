@@ -165,6 +165,18 @@ const globalCss = `
     color: var(--danger);
   }
 
+  .button.flag-button {
+    background: rgba(168, 85, 247, 0.15);
+    color: var(--secondary);
+    border: 1px solid rgba(168, 85, 247, 0.35);
+  }
+
+  .button.flag-button.active {
+    background: rgba(168, 85, 247, 0.28);
+    color: #f5eaff;
+    border-color: rgba(168, 85, 247, 0.6);
+  }
+
   .button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -308,6 +320,14 @@ const globalCss = `
     font-size: 13px;
   }
 
+  .palette-item.flagged::after {
+    content: "*";
+    display: block;
+    font-size: 12px;
+    color: var(--secondary);
+    margin-top: 4px;
+  }
+
   .palette-item.current {
     border-color: rgba(56, 189, 248, 0.9);
   }
@@ -445,6 +465,47 @@ const globalCss = `
     border-radius: 16px;
   }
 
+  .question-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: 540px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .session-item {
+    border: 1px solid rgba(56, 189, 248, 0.12);
+    border-radius: 16px;
+    padding: 16px;
+    background: rgba(15, 23, 42, 0.55);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: border 0.2s ease, background 0.2s ease;
+  }
+
+  .session-item.active {
+    border-color: rgba(56, 189, 248, 0.45);
+    background: rgba(15, 31, 56, 0.75);
+  }
+
+  .session-item-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .question-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .question-list::-webkit-scrollbar-thumb {
+    background: rgba(56, 189, 248, 0.3);
+    border-radius: 999px;
+  }
+
   .toast {
     position: fixed;
     bottom: 24px;
@@ -502,7 +563,8 @@ const DEFAULT_SESSION_CONFIG = {
   difficulty: 'all',
   statusFilter: 'unanswered',
   includeCustom: true,
-  onlyCustom: false
+  onlyCustom: false,
+  flagFilter: 'any'
 };
 
 const statusLabels = {
@@ -515,6 +577,17 @@ const difficultyOrder = ['easy', 'medium', 'hard'];
 
 function clone(data) {
   return data ? JSON.parse(JSON.stringify(data)) : data;
+}
+
+function normalizeUserData(data) {
+  const normalized = data ? { ...data } : {};
+  if (!normalized.userSettings) normalized.userSettings = { theme: 'system' };
+  if (!Array.isArray(normalized.customQuestions)) normalized.customQuestions = [];
+  if (!normalized.questionStats) normalized.questionStats = {};
+  if (!Array.isArray(normalized.sessionHistory)) normalized.sessionHistory = [];
+  if (!normalized.notes) normalized.notes = {};
+  if (!Array.isArray(normalized.flaggedQuestionIds)) normalized.flaggedQuestionIds = [];
+  return normalized;
 }
 
 function determineStatus(statsEntry) {
@@ -732,8 +805,10 @@ function Dashboard({
   breakdown,
   onStartSession,
   onReviewIncorrect,
+  onReviewFlagged,
   onResumeSession,
   hasActiveSession,
+  hasFlagged,
   onOpenConfig
 }) {
   return (
@@ -790,6 +865,9 @@ function Dashboard({
           <button className="button secondary" onClick={onReviewIncorrect}>
             Review Incorrect Questions
           </button>
+          <button className="button secondary" onClick={onReviewFlagged} disabled={!hasFlagged}>
+            Review Flagged Questions
+          </button>
           <button className="button secondary" onClick={onResumeSession} disabled={!hasActiveSession}>
             Resume Last Session
           </button>
@@ -807,7 +885,10 @@ function SessionView({
   onSelectAnswer,
   onNavigate,
   onFinish,
-  onExit
+  onExit,
+  onToggleFlag,
+  isFlagged,
+  flaggedSet
 }) {
   if (!session || !question) {
     return <div className="empty-state">No active session. Start a new study session from the dashboard.</div>;
@@ -828,6 +909,22 @@ function SessionView({
           <span>Question {questionIndex + 1} of {totalQuestions}</span>
           {question.difficulty && <span className="pill">{question.difficulty.toUpperCase()}</span>}
           <span>{question.category} ▸ {question.subcategory}</span>
+          {isFlagged && (
+            <span
+              className="pill"
+              style={{ background: 'rgba(168, 85, 247, 0.18)', color: '#f4e8ff' }}
+            >
+              Flagged
+            </span>
+          )}
+        </div>
+        <div style={{ marginTop: 10, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button
+            className={`button flag-button ${isFlagged ? 'active' : ''}`}
+            onClick={() => onToggleFlag(question.id)}
+          >
+            {isFlagged ? 'Remove Flag' : 'Flag Question'}
+          </button>
         </div>
         {session.mode === 'Exam' && session.status === 'active' && (
           <div style={{ marginTop: 12, color: 'var(--text-muted)', fontSize: 13 }}>
@@ -899,7 +996,7 @@ function SessionView({
           {session.questionIds.map((id, idx) => (
             <div
               key={id}
-              className={derivePaletteClass(id, question.id, session)}
+              className={`${derivePaletteClass(id, question.id, session)}${flaggedSet?.has(id) ? ' flagged' : ''}`}
               onClick={() => onNavigate(idx)}
             >
               {idx + 1}
@@ -911,7 +1008,14 @@ function SessionView({
   );
 }
 
-function StatsView({ questions, userData, onResetAll, onResetQuestion }) {
+function HistoryView({
+  questionsMap,
+  userData,
+  onResetAll,
+  selectedSessionId,
+  onSelectSession,
+  onDeleteSession
+}) {
   const attempts = useMemo(() => {
     if (!userData?.questionStats) return [];
     const rows = [];
@@ -927,18 +1031,15 @@ function StatsView({ questions, userData, onResetAll, onResetQuestion }) {
     return rows.sort((a, b) => new Date(b.attempt.timestamp) - new Date(a.attempt.timestamp));
   }, [userData]);
 
-  const questionMap = useMemo(() => {
-    const map = new Map();
-    questions.forEach((q) => map.set(q.id, q));
-    return map;
-  }, [questions]);
+  const sessions = userData?.sessionHistory || [];
+  const selectedSession = sessions.find((session) => session.id === selectedSessionId) || null;
 
   return (
     <div className="grid">
       <div className="section-title">
         <div>
-          <h1>Analytics</h1>
-          <p className="section-subtitle">Understand strengths and discover blind spots.</p>
+          <h1>History</h1>
+          <p className="section-subtitle">Review performance trends and revisit past sessions.</p>
         </div>
         <button className="button danger" onClick={onResetAll}>
           Reset All Progress
@@ -946,7 +1047,7 @@ function StatsView({ questions, userData, onResetAll, onResetQuestion }) {
       </div>
 
       <div className="card">
-        <h2>Attempt History</h2>
+        <h2>Question Attempts</h2>
         {attempts.length === 0 ? (
           <div className="empty-state">No recorded attempts yet.</div>
         ) : (
@@ -962,7 +1063,7 @@ function StatsView({ questions, userData, onResetAll, onResetQuestion }) {
             </thead>
             <tbody>
               {attempts.map((row) => {
-                const question = questionMap.get(row.id);
+                const question = questionsMap.get(row.id);
                 const resultClass = row.attempt.result === 'correct' ? 'pill correct' : 'pill incorrect';
                 return (
                   <tr key={`${row.id}-${row.index}-${row.attempt.timestamp}`}>
@@ -988,44 +1089,199 @@ function StatsView({ questions, userData, onResetAll, onResetQuestion }) {
         )}
       </div>
 
+      <div className="grid two">
+        <div className="card">
+          <h2>Session History</h2>
+          {sessions.length === 0 ? (
+            <div className="empty-state">Complete a session to populate history.</div>
+          ) : (
+            <div className="question-list">
+              {sessions.map((session) => {
+                const totalQuestions = session.questionIds?.length || session.total || 0;
+                const answers = session.userAnswers || {};
+                const answeredCount = Object.values(answers).filter((answer) => answer && answer.choiceIndex != null).length;
+                const correctCount =
+                  typeof session.correct === 'number'
+                    ? session.correct
+                    : Object.values(answers).filter((answer) => answer && answer.isCorrect).length;
+                const accuracy = totalQuestions ? Math.round((correctCount / totalQuestions) * 100) : 0;
+                const isActive = selectedSessionId === session.id;
+                return (
+                  <div key={session.id} className={`session-item${isActive ? ' active' : ''}`}>
+                    <div className="session-item-meta">
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{session.mode} · {totalQuestions} questions</div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                          {formatDate(session.completedAt || session.createdAt)}
+                        </div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                          {totalQuestions ? `${correctCount}/${totalQuestions} correct` : 'No questions recorded'}
+                        </div>
+                      </div>
+                      <span
+                        className="pill"
+                        style={{ background: 'rgba(56, 189, 248, 0.15)', color: 'var(--primary)' }}
+                      >
+                        {accuracy}%
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <button className="button secondary" onClick={() => onSelectSession(session.id)}>
+                        {isActive ? 'Close Review' : 'Review'}
+                      </button>
+                      <button className="button danger" onClick={() => onDeleteSession(session.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <SessionReviewCard session={selectedSession} questionsMap={questionsMap} />
+      </div>
+    </div>
+  );
+}
+
+function SessionReviewCard({ session, questionsMap }) {
+  if (!session) {
+    return (
       <div className="card">
-        <h2>Question Controls</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {questions.map((question) => {
-            const status = determineStatus(userData?.questionStats[question.id]);
+        <h2>Session Review</h2>
+        <div className="empty-state">Select a session to review detailed results.</div>
+      </div>
+    );
+  }
+
+  const questionIds = session.questionIds || [];
+  const answers = session.userAnswers || {};
+  const totalQuestions = questionIds.length || session.total || 0;
+  const answeredCount = Object.values(answers).filter((answer) => answer && answer.choiceIndex != null).length;
+  const correctCount =
+    typeof session.correct === 'number'
+      ? session.correct
+      : Object.values(answers).filter((answer) => answer && answer.isCorrect).length;
+  const incorrectCount = Math.max(0, answeredCount - correctCount);
+  const unansweredCount = Math.max(0, totalQuestions - answeredCount);
+
+  return (
+    <div className="card">
+      <div className="section-title">
+        <div>
+          <h2>Session Review</h2>
+          <p className="section-subtitle">
+            {formatDate(session.completedAt || session.createdAt)} · {session.mode} mode
+          </p>
+        </div>
+      </div>
+      <div className="stats-row" style={{ marginBottom: 14 }}>
+        <div className="stat-pill">
+          <strong>{correctCount}</strong>
+          Correct
+        </div>
+        <div className="stat-pill">
+          <strong>{incorrectCount}</strong>
+          Incorrect
+        </div>
+        <div className="stat-pill">
+          <strong>{unansweredCount}</strong>
+          Unanswered
+        </div>
+      </div>
+      <div className="question-list">
+        {questionIds.length === 0 && <div className="empty-state">No questions recorded for this session.</div>}
+        {questionIds.map((id, index) => {
+          const question = questionsMap.get(id);
+          const userAnswer = answers[id];
+          const statusKey = userAnswer?.choiceIndex == null ? 'unanswered' : userAnswer?.isCorrect ? 'correct' : 'incorrect';
+          const correctIndex =
+            userAnswer?.correctIndex != null
+              ? userAnswer.correctIndex
+              : question
+                ? scoreAnswer(question, userAnswer?.choiceIndex ?? -1).correctIndex
+                : -1;
+
+          if (!question) {
             return (
               <div
-                key={question.id}
+                key={`${id}-${index}`}
                 style={{
+                  borderRadius: 16,
                   border: '1px solid rgba(56, 189, 248, 0.12)',
-                  borderRadius: 14,
-                  padding: 16,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                  background: 'rgba(15, 23, 42, 0.55)'
+                  padding: 18,
+                  background: 'rgba(16, 26, 43, 0.65)'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{question.id}</div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{question.questionText}</div>
-                  </div>
-                  <span className={`pill ${status}`}>{statusLabels[status]}</span>
-                </div>
-                <div className="question-meta">
-                  <span>{question.category} ▸ {question.subcategory}</span>
-                  <span>Difficulty: {question.difficulty || '—'}</span>
-                </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button className="button secondary" onClick={() => onResetQuestion(question.id)}>
-                    Reset History
-                  </button>
-                </div>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>Question no longer available</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>ID: {id}</div>
               </div>
             );
-          })}
-        </div>
+          }
+
+          return (
+            <div
+              key={`${id}-${index}`}
+              style={{
+                borderRadius: 16,
+                border: '1px solid rgba(56, 189, 248, 0.12)',
+                padding: 18,
+                background: 'rgba(16, 26, 43, 0.65)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Question {index + 1}</div>
+                  <div style={{ color: 'var(--text-muted)' }}>{question.questionText}</div>
+                </div>
+                <span className={`pill ${statusKey}`}>{statusLabels[statusKey]}</span>
+              </div>
+              {question.image && (
+                <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(56, 189, 248, 0.18)' }}>
+                  <img
+                    src={`../data/images/${question.image}`}
+                    alt={question.imageAlt || 'Question illustration'}
+                    style={{ display: 'block', width: '100%' }}
+                  />
+                </div>
+              )}
+              <div className="answers">
+                {question.answers.map((answer, answerIndex) => {
+                  const isSelected = userAnswer?.choiceIndex === answerIndex;
+                  const isCorrectChoice = answerIndex === correctIndex;
+                  let className = 'answer-option';
+                  if (isSelected) className += ' selected';
+                  if (isCorrectChoice) className += ' correct';
+                  else if (isSelected) className += ' incorrect';
+                  return (
+                    <div key={answer.text} className={className} style={{ cursor: 'default' }}>
+                      <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                        {String.fromCharCode(65 + answerIndex)}. {answer.text}
+                      </div>
+                      <div className="explanation">{answer.explanation}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              {question.didactic && (
+                <div style={{ background: 'rgba(15, 23, 42, 0.6)', borderRadius: 12, padding: 14 }}>
+                  <h3 style={{ marginTop: 0 }}>Didactic Summary</h3>
+                  <p style={{ whiteSpace: 'pre-line', color: 'var(--text-muted)', lineHeight: 1.6 }}>{question.didactic}</p>
+                </div>
+              )}
+              {question.educationalObjective && (
+                <div style={{ background: 'rgba(15, 23, 42, 0.6)', borderRadius: 12, padding: 14 }}>
+                  <h3 style={{ marginTop: 0 }}>Educational Objective</h3>
+                  <p style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>{question.educationalObjective}</p>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -1035,17 +1291,113 @@ function ContentView({
   allQuestions,
   userData,
   filters,
+  customQuestionIds,
+  flaggedSet,
   onCreateQuestion,
   onImport,
   onExport,
-  onResetQuestion
+  onResetQuestion,
+  onBulkReset,
+  onDeleteCustomQuestions,
+  onToggleFlag
 }) {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [difficultyFilter, setDifficultyFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+
+  useEffect(() => {
+    const availableIds = new Set(allQuestions.map((question) => question.id));
+    setSelectedIds((prev) => {
+      let changed = false;
+      const next = new Set();
+      prev.forEach((id) => {
+        if (availableIds.has(id)) {
+          next.add(id);
+        } else {
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [allQuestions]);
+
+  const toggleSelection = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(() => new Set());
+  };
+
+  const selectedArray = useMemo(() => Array.from(selectedIds), [selectedIds]);
+  const selectedCount = selectedArray.length;
+  const customSelectedCount = useMemo(
+    () => selectedArray.filter((id) => customQuestionIds.has(id)).length,
+    [selectedArray, customQuestionIds]
+  );
+  const hasSelection = selectedCount > 0;
+  const hasCustomSelection = customSelectedCount > 0;
+
+  const handleResetSelected = () => {
+    if (!hasSelection) return;
+    const confirmReset = window.confirm(
+      selectedCount === 1
+        ? 'Reset history for the selected question?'
+        : `Reset history for ${selectedCount} questions?`
+    );
+    if (!confirmReset) return;
+    onBulkReset(selectedArray);
+    clearSelection();
+  };
+
+  const handleDeleteSelected = () => {
+    if (!hasCustomSelection) {
+      alert('Select custom questions to delete.');
+      return;
+    }
+    const customIds = selectedArray.filter((id) => customQuestionIds.has(id));
+    const confirmDelete = window.confirm(
+      customIds.length === 1
+        ? 'Delete this custom question? This cannot be undone.'
+        : `Delete ${customIds.length} custom questions? This cannot be undone.`
+    );
+    if (!confirmDelete) return;
+    onDeleteCustomQuestions(customIds);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      customIds.forEach((id) => next.delete(id));
+      return next;
+    });
+  };
+
+  const handleDeleteSingle = (id) => {
+    if (!customQuestionIds.has(id)) return;
+    const confirmDelete = window.confirm('Delete this custom question? This cannot be undone.');
+    if (!confirmDelete) return;
+    onDeleteCustomQuestions([id]);
+    setSelectedIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
 
   const filteredQuestions = useMemo(() => {
     return allQuestions.filter((question) => {
+      const isCustom = customQuestionIds.has(question.id);
+      if (sourceFilter === 'default' && isCustom) return false;
+      if (sourceFilter === 'custom' && !isCustom) return false;
       if (categoryFilter !== 'all' && question.category !== categoryFilter) return false;
       if (difficultyFilter !== 'all' && question.difficulty?.toLowerCase() !== difficultyFilter) return false;
       if (search) {
@@ -1055,7 +1407,7 @@ function ContentView({
       }
       return true;
     });
-  }, [allQuestions, categoryFilter, difficultyFilter, search]);
+  }, [allQuestions, categoryFilter, difficultyFilter, search, sourceFilter, customQuestionIds]);
 
   const [newQuestion, setNewQuestion] = useState({
     id: '',
@@ -1158,10 +1510,33 @@ function ContentView({
               ))}
             </select>
           </label>
+          <label>
+            Source
+            <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
+              <option value="all">All questions</option>
+              <option value="default">Core bank</option>
+              <option value="custom">Custom only</option>
+            </select>
+          </label>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
+          <span style={{ color: 'var(--text-muted)' }}>{selectedCount} selected</span>
+          <button className="button secondary" onClick={handleResetSelected} disabled={!hasSelection}>
+            Reset Selected
+          </button>
+          <button className="button danger" onClick={handleDeleteSelected} disabled={!hasCustomSelection}>
+            Delete Selected
+          </button>
+          <button className="button secondary" onClick={clearSelection} disabled={!hasSelection}>
+            Clear Selection
+          </button>
+        </div>
+        <div className="question-list" style={{ marginTop: 18 }}>
           {filteredQuestions.map((question) => {
             const status = determineStatus(userData?.questionStats[question.id]);
+            const isCustom = customQuestionIds.has(question.id);
+            const isFlagged = flaggedSet.has(question.id);
+            const isSelected = selectedIds.has(question.id);
             return (
               <div
                 key={question.id}
@@ -1172,15 +1547,35 @@ function ContentView({
                   background: 'rgba(16, 26, 43, 0.65)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 10
+                  gap: 12
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ fontWeight: 600 }}>{question.id || 'Custom (pending ID)'}</div>
-                    <div style={{ color: 'var(--text-muted)' }}>{question.questionText}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', minWidth: 0 }}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelection(question.id)}
+                      style={{ width: 18, height: 18, marginTop: 2 }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600 }}>{question.id || 'Custom (pending ID)'}</div>
+                      <div style={{ color: 'var(--text-muted)' }}>{question.questionText}</div>
+                    </div>
                   </div>
-                  <span className={`pill ${status}`}>{statusLabels[status]}</span>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    {isCustom && (
+                      <span className="pill" style={{ background: 'rgba(52, 211, 153, 0.18)', color: '#a7f3d0' }}>
+                        Custom
+                      </span>
+                    )}
+                    {isFlagged && (
+                      <span className="pill" style={{ background: 'rgba(168, 85, 247, 0.18)', color: '#f4e8ff' }}>
+                        Flagged
+                      </span>
+                    )}
+                    <span className={`pill ${status}`}>{statusLabels[status]}</span>
+                  </div>
                 </div>
                 <div className="question-meta">
                   <span>{question.category} ▸ {question.subcategory}</span>
@@ -1196,10 +1591,21 @@ function ContentView({
                     Objective: {question.educationalObjective}
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                   <button className="button secondary" onClick={() => onResetQuestion(question.id)}>
                     Reset History
                   </button>
+                  <button
+                    className={`button flag-button ${isFlagged ? 'active' : ''}`}
+                    onClick={() => onToggleFlag(question.id)}
+                  >
+                    {isFlagged ? 'Remove Flag' : 'Flag'}
+                  </button>
+                  {isCustom && (
+                    <button className="button danger" onClick={() => handleDeleteSingle(question.id)}>
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -1388,10 +1794,10 @@ function SettingsView({ paths, onChooseLocation, onUseDefault }) {
 }
 
 function SessionConfigurator({ filters, config, onUpdate, onCancel, onCreate }) {
-  const [localConfig, setLocalConfig] = useState(config);
+  const [localConfig, setLocalConfig] = useState({ ...DEFAULT_SESSION_CONFIG, ...config });
 
   useEffect(() => {
-    setLocalConfig(config);
+    setLocalConfig({ ...DEFAULT_SESSION_CONFIG, ...config });
   }, [config]);
 
   const toggleCategory = (category) => {
@@ -1466,6 +1872,17 @@ function SessionConfigurator({ filters, config, onUpdate, onCancel, onCreate }) 
               <option value="all">All questions</option>
               <option value="unanswered">Unanswered only</option>
               <option value="incorrect">Incorrect only</option>
+            </select>
+          </label>
+          <label>
+            Flag Filter
+            <select
+              value={localConfig.flagFilter || 'any'}
+              onChange={(event) => setLocalConfig((prev) => ({ ...prev, flagFilter: event.target.value }))}
+            >
+              <option value="any">Include flagged & unflagged</option>
+              <option value="flagged">Flagged only</option>
+              <option value="excludeFlagged">Exclude flagged</option>
             </select>
           </label>
         </div>
@@ -1561,12 +1978,13 @@ function App() {
   const [userData, setUserData] = useState(null);
   const [activeView, setActiveView] = useState('dashboard');
   const [showConfigurator, setShowConfigurator] = useState(false);
-  const [sessionConfig, setSessionConfig] = useState(DEFAULT_SESSION_CONFIG);
+  const [sessionConfig, setSessionConfig] = useState({ ...DEFAULT_SESSION_CONFIG });
   const [toast, setToast] = useState({ type: 'success', message: '' });
   const [storagePaths, setStoragePaths] = useState({
     currentUserDataPath: '',
     defaultUserDataPath: ''
   });
+  const [selectedHistorySessionId, setSelectedHistorySessionId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1575,7 +1993,7 @@ function App() {
         const payload = await window.gasbank.loadData();
         if (cancelled) return;
         setBaseQuestions(payload.questions || []);
-        setUserData(payload.userData || clone(null));
+        setUserData(normalizeUserData(payload.userData || {}));
         if (payload.paths) {
           setStoragePaths(payload.paths);
         }
@@ -1609,6 +2027,27 @@ function App() {
     return map;
   }, [allQuestions]);
 
+  const customQuestionIds = useMemo(() => {
+    const ids = new Set();
+    (userData?.customQuestions || []).forEach((question) => {
+      if (question?.id) {
+        ids.add(question.id);
+      }
+    });
+    return ids;
+  }, [userData]);
+
+  const flaggedSet = useMemo(() => new Set(userData?.flaggedQuestionIds || []), [userData]);
+  const flaggedCount = flaggedSet.size;
+
+  useEffect(() => {
+    if (!selectedHistorySessionId) return;
+    const exists = userData?.sessionHistory?.some((session) => session.id === selectedHistorySessionId);
+    if (!exists) {
+      setSelectedHistorySessionId(null);
+    }
+  }, [selectedHistorySessionId, userData]);
+
   const activeSession = userData?.activeSession ?? null;
 
   const showToast = (type, message) => {
@@ -1633,8 +2072,11 @@ function App() {
   const updateUserData = (mutator) => {
     setUserData((prev) => {
       if (!prev) return prev;
-      const draft = clone(prev);
+      const draft = normalizeUserData(clone(prev));
       mutator(draft);
+      if (Array.isArray(draft.flaggedQuestionIds)) {
+        draft.flaggedQuestionIds = Array.from(new Set(draft.flaggedQuestionIds));
+      }
       window.gasbank.saveUserData(draft).catch((err) => {
         console.error(err);
         showToast('error', 'Failed to save changes locally.');
@@ -1653,7 +2095,7 @@ function App() {
         return;
       }
       if (result.userData) {
-        setUserData(result.userData);
+        setUserData(normalizeUserData(result.userData));
       }
       if (result.paths) {
         setStoragePaths(result.paths);
@@ -1679,7 +2121,7 @@ function App() {
         return;
       }
       if (result.userData) {
-        setUserData(result.userData);
+        setUserData(normalizeUserData(result.userData));
       }
       if (result.paths) {
         setStoragePaths(result.paths);
@@ -1714,6 +2156,13 @@ function App() {
         return false;
       }
       if (config.statusFilter === 'incorrect' && determineStatus(userData?.questionStats[question.id]) !== 'incorrect') {
+        return false;
+      }
+      const isFlagged = flaggedSet.has(question.id);
+      if (config.flagFilter === 'flagged' && !isFlagged) {
+        return false;
+      }
+      if (config.flagFilter === 'excludeFlagged' && isFlagged) {
         return false;
       }
       return true;
@@ -1799,20 +2248,36 @@ function App() {
       return;
     }
 
-    const sessionSummary = { ...activeSession, completedAt: new Date().toISOString(), status: 'completed' };
+    const answersSnapshot = clone(activeSession.userAnswers || {});
+    const questionIdsSnapshot = [...activeSession.questionIds];
+    const sessionSummary = {
+      ...activeSession,
+      completedAt: new Date().toISOString(),
+      status: 'completed',
+      userAnswers: answersSnapshot,
+      questionIds: questionIdsSnapshot
+    };
     const updates = evaluateSessionResults(sessionSummary, questionsMap);
+    const answeredCount = Object.values(answersSnapshot).filter((answer) => answer && answer.choiceIndex != null).length;
+    const correctCount = updates.filter((entry) => entry.isCorrect).length;
+    const sessionRecord = {
+      id: sessionSummary.id,
+      createdAt: sessionSummary.createdAt,
+      completedAt: sessionSummary.completedAt,
+      mode: sessionSummary.mode,
+      questionIds: [...questionIdsSnapshot],
+      userAnswers: clone(answersSnapshot),
+      total: questionIdsSnapshot.length,
+      correct: correctCount,
+      answered: answeredCount,
+      config: sessionSummary.config,
+      status: 'completed'
+    };
 
     updateUserData((draft) => {
       if (!draft.activeSession) return;
       draft.sessionHistory = draft.sessionHistory || [];
-      draft.sessionHistory.unshift({
-        id: sessionSummary.id,
-        createdAt: sessionSummary.createdAt,
-        completedAt: sessionSummary.completedAt,
-        mode: sessionSummary.mode,
-        total: sessionSummary.questionIds.length,
-        correct: updates.filter((entry) => entry.isCorrect).length
-      });
+      draft.sessionHistory.unshift(sessionRecord);
       if (draft.sessionHistory.length > 50) {
         draft.sessionHistory = draft.sessionHistory.slice(0, 50);
       }
@@ -1851,12 +2316,27 @@ function App() {
     startSessionFromConfig(config, incorrectIds);
   };
 
+  const handleReviewFlagged = () => {
+    const flaggedIds = userData?.flaggedQuestionIds?.filter((id) => questionsMap.has(id)) || [];
+    if (!flaggedIds.length) {
+      showToast('error', 'No flagged questions to review.');
+      return;
+    }
+    const config = {
+      ...DEFAULT_SESSION_CONFIG,
+      statusFilter: 'all',
+      flagFilter: 'flagged',
+      numQuestions: flaggedIds.length
+    };
+    startSessionFromConfig(config, flaggedIds);
+  };
+
   const handleResetAll = async () => {
     const confirmReset = window.confirm('Reset all progress? This cannot be undone.');
     if (!confirmReset) return;
     try {
       const result = await window.gasbank.resetAllProgress();
-      setUserData(result.userData);
+      setUserData(normalizeUserData(result.userData));
       showToast('success', 'Progress reset.');
     } catch (err) {
       console.error(err);
@@ -1871,6 +2351,88 @@ function App() {
       }
     });
     showToast('success', `History cleared for ${id}.`);
+  };
+
+  const handleBulkResetQuestions = (ids) => {
+    if (!ids || !ids.length) return;
+    const unique = Array.from(new Set(ids));
+    updateUserData((draft) => {
+      unique.forEach((id) => {
+        if (draft.questionStats[id]) {
+          delete draft.questionStats[id];
+        }
+      });
+    });
+    showToast('success', unique.length === 1 ? 'History cleared for 1 question.' : `History cleared for ${unique.length} questions.`);
+  };
+
+  const handleDeleteCustomQuestions = (ids) => {
+    if (!ids || !ids.length) return;
+    const unique = Array.from(new Set(ids));
+    const toDelete = new Set(unique);
+    updateUserData((draft) => {
+      draft.customQuestions = (draft.customQuestions || []).filter((question) => !toDelete.has(question.id));
+      unique.forEach((id) => {
+        if (draft.questionStats[id]) {
+          delete draft.questionStats[id];
+        }
+      });
+      if (Array.isArray(draft.flaggedQuestionIds)) {
+        draft.flaggedQuestionIds = draft.flaggedQuestionIds.filter((id) => !toDelete.has(id));
+      }
+      if (draft.activeSession) {
+        draft.activeSession.questionIds = draft.activeSession.questionIds.filter((id) => !toDelete.has(id));
+        if (draft.activeSession.userAnswers) {
+          unique.forEach((id) => {
+            delete draft.activeSession.userAnswers[id];
+          });
+        }
+        if (!draft.activeSession.questionIds.length) {
+          draft.activeSession = null;
+        } else if (draft.activeSession.currentIndex >= draft.activeSession.questionIds.length) {
+          draft.activeSession.currentIndex = Math.max(0, draft.activeSession.questionIds.length - 1);
+        }
+      }
+    });
+    showToast('success', unique.length === 1 ? 'Custom question deleted.' : `${unique.length} custom questions deleted.`);
+  };
+
+  const handleToggleFlag = (id) => {
+    updateUserData((draft) => {
+      draft.flaggedQuestionIds = draft.flaggedQuestionIds || [];
+      const index = draft.flaggedQuestionIds.indexOf(id);
+      if (index >= 0) {
+        draft.flaggedQuestionIds.splice(index, 1);
+      } else {
+        draft.flaggedQuestionIds.push(id);
+      }
+    });
+    const isNowFlagged = !flaggedSet.has(id);
+    showToast('success', isNowFlagged ? 'Question flagged for review.' : 'Flag removed.');
+  };
+
+  const handleSelectHistorySession = (sessionId) => {
+    setSelectedHistorySessionId((prev) => (prev === sessionId ? null : sessionId));
+  };
+
+  const handleDeleteSession = (sessionId) => {
+    const exists = userData?.sessionHistory?.some((session) => session.id === sessionId);
+    if (!exists) {
+      showToast('error', 'Session not found.');
+      return;
+    }
+    const confirmDelete = window.confirm('Delete this session? This cannot be undone.');
+    if (!confirmDelete) return;
+    updateUserData((draft) => {
+      draft.sessionHistory = (draft.sessionHistory || []).filter((session) => session.id !== sessionId);
+      if (draft.activeSession && draft.activeSession.id === sessionId) {
+        draft.activeSession = null;
+      }
+    });
+    if (selectedHistorySessionId === sessionId) {
+      setSelectedHistorySessionId(null);
+    }
+    showToast('success', 'Session deleted.');
   };
 
   const handleCreateQuestion = (question) => {
@@ -1995,10 +2557,10 @@ function App() {
             Session
           </button>
           <button
-            className={`nav-button ${activeView === 'stats' ? 'active' : ''}`}
-            onClick={() => setActiveView('stats')}
+            className={`nav-button ${activeView === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveView('history')}
           >
-            Analytics
+            History
           </button>
           <button
             className={`nav-button ${activeView === 'content' ? 'active' : ''}`}
@@ -2025,8 +2587,10 @@ function App() {
               setShowConfigurator(true);
             }}
             onReviewIncorrect={handleReviewIncorrect}
+            onReviewFlagged={handleReviewFlagged}
             onResumeSession={handleResumeSession}
             hasActiveSession={!!userData?.activeSession}
+            hasFlagged={flaggedCount > 0}
             onOpenConfig={() => setShowConfigurator(true)}
           />
         )}
@@ -2040,14 +2604,19 @@ function App() {
             onNavigate={handleNavigate}
             onFinish={handleFinishSession}
             onExit={handleExitSession}
+            onToggleFlag={handleToggleFlag}
+            isFlagged={currentQuestion ? flaggedSet.has(currentQuestion.id) : false}
+            flaggedSet={flaggedSet}
           />
         )}
-        {activeView === 'stats' && (
-          <StatsView
-            questions={allQuestions}
+        {activeView === 'history' && (
+          <HistoryView
+            questionsMap={questionsMap}
             userData={userData}
             onResetAll={handleResetAll}
-            onResetQuestion={handleResetQuestion}
+            selectedSessionId={selectedHistorySessionId}
+            onSelectSession={handleSelectHistorySession}
+            onDeleteSession={handleDeleteSession}
           />
         )}
         {activeView === 'content' && (
@@ -2055,10 +2624,15 @@ function App() {
             allQuestions={allQuestions}
             userData={userData}
             filters={filters}
+            customQuestionIds={customQuestionIds}
+            flaggedSet={flaggedSet}
             onCreateQuestion={handleCreateQuestion}
             onImport={handleImport}
             onExport={handleExport}
             onResetQuestion={handleResetQuestion}
+            onBulkReset={handleBulkResetQuestions}
+            onDeleteCustomQuestions={handleDeleteCustomQuestions}
+            onToggleFlag={handleToggleFlag}
           />
         )}
         {activeView === 'settings' && (
