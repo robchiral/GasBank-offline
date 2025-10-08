@@ -1,14 +1,6 @@
 import React from 'react';
 
-export function SettingsView({
-  paths,
-  customImageDirectory,
-  onChooseLocation,
-  onUseDefault,
-  onSelectCustomImageDirectory,
-  onPersistCustomImageDirectory
-}) {
-  const isDefault = paths.currentUserDataPath === paths.defaultUserDataPath;
+export function SettingsView({ paths, customImageDirectory }) {
   const defaultImageDirectory = React.useMemo(() => {
     if (!paths.currentUserDataPath) return null;
     const sanitized = paths.currentUserDataPath.replace(/\\/g, '/');
@@ -17,85 +9,50 @@ export function SettingsView({
     return `${segments.join('/')}/images`;
   }, [paths.currentUserDataPath]);
 
+  const resolvedImageDirectory = customImageDirectory || defaultImageDirectory;
+
   return (
     <div className="grid">
       <div className="section-title">
         <div>
           <h1>Settings</h1>
-          <p className="section-subtitle">Control where your study data is stored.</p>
         </div>
       </div>
 
       <div className="card">
-        <h2>Storage Location</h2>
+        <h2>Application Data</h2>
         <p style={{ color: 'var(--text-muted)' }}>
-          GasBank keeps your progress inside a single <code>userData.json</code> file. You can relocate this file to
-          match your backup workflow.
+          GasBank stores your progress, custom questions, and preferences inside a single <code>userData.json</code>{' '}
+          file. Use this path if you want to back up or inspect the data manually.
         </p>
         <div style={{ margin: '18px 0', padding: 18, borderRadius: 14, background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(56,189,248,0.14)' }}>
           <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-            Current path
+            Managed location
           </div>
           <code style={{ fontSize: 14, wordBreak: 'break-all', color: 'var(--text)' }}>{paths.currentUserDataPath || 'Unknown'}</code>
         </div>
-        {!isDefault && (
-          <div style={{ marginBottom: 16, fontSize: 13, color: 'var(--text-muted)' }}>
-            Default location: <code>{paths.defaultUserDataPath}</code>
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <button className="button secondary" onClick={onChooseLocation}>
-            Choose New Location
-          </button>
-          <button className="button secondary" onClick={onUseDefault} disabled={isDefault}>
-            Use Default Location
-          </button>
-        </div>
         <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 18 }}>
-          Tip: place the data file inside a synced folder so your progress follows you.
+          Location is controlled by the application; move or copy the file externally if you need your own backups.
         </p>
       </div>
 
       <div className="card">
         <h2>Custom Images</h2>
         <p style={{ color: 'var(--text-muted)', marginBottom: 12 }}>
-          Custom question images are stored locally so you can manage them alongside your question data.
+          Images referenced by custom questions must reside in this directory. Reference files by filename (e.g.,
+          <code>arterial_line_ultrasound.png</code>) when adding questions.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-              Current directory
+              Image directory
             </div>
-            <code style={{ fontSize: 14, wordBreak: 'break-all', color: 'var(--text)' }}>{customImageDirectory || defaultImageDirectory || 'Not set'}</code>
-          </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <button
-              className="button secondary"
-              onClick={async () => {
-                const result = await window.gasbank.chooseUserDataDirectory();
-                if (!result || result.canceled || !result.directory) return;
-                onSelectCustomImageDirectory(result.directory);
-              }}
-            >
-              Choose Directory
-            </button>
-            <button
-              className="button secondary"
-              onClick={() => onSelectCustomImageDirectory(defaultImageDirectory)}
-              disabled={!defaultImageDirectory}
-            >
-              Use Default
-            </button>
-            <button
-              className="button"
-              onClick={() => onPersistCustomImageDirectory(customImageDirectory)}
-              disabled={!customImageDirectory}
-            >
-              Save Location
-            </button>
+            <code style={{ fontSize: 14, wordBreak: 'break-all', color: 'var(--text)' }}>
+              {resolvedImageDirectory || 'Unavailable'}
+            </code>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-            Images placed in this folder can be referenced by filename when creating or importing custom questions. Choose a directory, then click Save to apply the change.
+            The folder is created automatically beside <code>userData.json</code>. Organize or back it up alongside the data file.
           </p>
         </div>
       </div>

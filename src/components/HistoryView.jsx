@@ -30,7 +30,6 @@ export function HistoryView({
       <div className="section-title">
         <div>
           <h1>History</h1>
-          <p className="section-subtitle">Review performance trends and revisit past sessions.</p>
         </div>
         <button className="button danger" onClick={onResetAll}>
           Reset All Progress

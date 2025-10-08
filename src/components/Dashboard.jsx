@@ -16,8 +16,7 @@ export function Dashboard({
     <div className="grid">
       <div className="section-title">
         <div>
-          <h1>Welcome back</h1>
-          <p className="section-subtitle">Track your mastery and jump into the next study block.</p>
+          <h1>Dashboard</h1>
         </div>
       </div>
 

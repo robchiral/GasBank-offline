@@ -2,6 +2,13 @@ import React from 'react';
 import { statusLabels } from '../constants.js';
 import { determineStatus } from '../utils/dataUtils.js';
 
+const buildDefaultAnswers = () =>
+  Array.from({ length: 5 }, (_, idx) => ({
+    text: '',
+    isCorrect: idx === 0,
+    explanation: ''
+  }));
+
 export function ContentView({
   allQuestions,
   userData,
@@ -69,7 +76,7 @@ export function ContentView({
     });
   }, [allQuestions, categoryFilter, difficultyFilter, search, sourceFilter, customQuestionIds]);
 
-  const [newQuestion, setNewQuestion] = React.useState({
+  const [newQuestion, setNewQuestion] = React.useState(() => ({
     id: '',
     category: '',
     subcategory: '',
@@ -77,15 +84,10 @@ export function ContentView({
     questionText: '',
     image: '',
     imageAlt: '',
-    answers: [
-      { text: '', isCorrect: true, explanation: '' },
-      { text: '', isCorrect: false, explanation: '' },
-      { text: '', isCorrect: false, explanation: '' },
-      { text: '', isCorrect: false, explanation: '' }
-    ],
+    answers: buildDefaultAnswers(),
     didactic: '',
     educationalObjective: ''
-  });
+  }));
 
   const selectedArray = React.useMemo(() => Array.from(selectedIds), [selectedIds]);
   const selectedCount = selectedArray.length;
@@ -103,6 +105,16 @@ export function ContentView({
     });
   };
 
+  const setCorrectAnswer = (index) => {
+    setNewQuestion((prev) => {
+      const nextAnswers = prev.answers.map((answer, idx) => ({
+        ...answer,
+        isCorrect: idx === index
+      }));
+      return { ...prev, answers: nextAnswers };
+    });
+  };
+
   const submitQuestion = () => {
     const requiredFields = ['category', 'subcategory', 'questionText'];
     const missing = requiredFields.filter((field) => !newQuestion[field].trim());
@@ -110,24 +122,33 @@ export function ContentView({
       alert(`Please fill in: ${missing.join(', ')}`);
       return;
     }
-    const hasCorrect = newQuestion.answers.some((answer) => answer.isCorrect);
-    if (!hasCorrect) {
-      alert('At least one answer must be marked correct.');
+    const trimmedAnswers = newQuestion.answers.map((answer) => ({
+      text: answer.text.trim(),
+      explanation: answer.explanation.trim(),
+      isCorrect: answer.isCorrect
+    }));
+    const filledAnswers = trimmedAnswers.filter((answer) => answer.text.length > 0);
+    if (filledAnswers.length === 0) {
+      alert('Add at least one answer choice.');
       return;
     }
-    onCreateQuestion(newQuestion);
+    const correctAnswers = filledAnswers.filter((answer) => answer.isCorrect);
+    if (correctAnswers.length !== 1) {
+      alert('Select exactly one correct answer.');
+      return;
+    }
+    if (!correctAnswers[0].text) {
+      alert('The correct answer must include answer text.');
+      return;
+    }
+    onCreateQuestion({ ...newQuestion, answers: filledAnswers });
     setNewQuestion((prev) => ({
       ...prev,
       id: '',
       questionText: '',
       image: '',
       imageAlt: '',
-      answers: prev.answers.map((answer, idx) => ({
-        ...answer,
-        text: '',
-        explanation: '',
-        isCorrect: idx === 0
-      })),
+      answers: buildDefaultAnswers(),
       didactic: '',
       educationalObjective: ''
     }));
@@ -182,8 +203,7 @@ export function ContentView({
     <div className="grid">
       <div className="section-title">
         <div>
-          <h1>Content Management</h1>
-          <p className="section-subtitle">Curate the question bank, add notes, and share your work.</p>
+          <h1>Content</h1>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
           <button className="button secondary" onClick={onImport}>
@@ -197,14 +217,6 @@ export function ContentView({
 
       <div className="card">
         <h2>Question Browser</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 12 }}>
-          Custom image directory:{' '}
-          {customImageDirectory ? (
-            <code>{customImageDirectory}</code>
-          ) : (
-            'Set this under Settings to enable custom images for imported/created questions.'
-          )}
-        </p>
         <div className="form-row">
           <label>
             Search
@@ -382,8 +394,8 @@ export function ContentView({
             />
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               {customImageDirectory
-                ? `Place image under ${customImageDirectory}`
-                : 'Set a custom image directory under Settings.'}
+                ? `Store images in ${customImageDirectory} and reference the filename here.`
+                : 'Images load from the managed images folder shown in Settings.'}
             </span>
           </label>
           <label>
@@ -429,9 +441,10 @@ export function ContentView({
                 />
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
                   <input
-                    type="checkbox"
+                    type="radio"
+                    name="correct-answer"
                     checked={answer.isCorrect}
-                    onChange={(event) => handleAnswerChange(idx, { isCorrect: event.target.checked })}
+                    onChange={() => setCorrectAnswer(idx)}
                     style={{ width: 18, height: 18 }}
                   />
                   Correct

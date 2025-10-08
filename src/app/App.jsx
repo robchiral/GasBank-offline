@@ -52,7 +52,11 @@ export function App() {
         if (payload.paths) {
           setStoragePaths(payload.paths);
         }
-        setCustomImageDirectory(normalizedUser.storage?.customImageDirectory || null);
+        const initialImageDir =
+          payload.storage?.customImageDirectory ??
+          normalizedUser.storage?.customImageDirectory ??
+          null;
+        setCustomImageDirectory(initialImageDir);
         setLoading(false);
       } catch (err) {
         setError(err);
@@ -105,30 +109,6 @@ export function App() {
     }, 3200);
   };
 
-  const refreshStoragePaths = async () => {
-    try {
-      const nextPaths = await window.gasbank.getStoragePaths();
-      if (nextPaths) {
-        setStoragePaths({
-          currentUserDataPath: nextPaths.currentUserDataPath,
-          defaultUserDataPath: nextPaths.defaultUserDataPath
-        });
-        setCustomImageDirectory(nextPaths.customImageDirectory || null);
-      }
-    } catch (err) {
-      console.error(err);
-      showToast('error', 'Failed to read storage paths.');
-    }
-  };
-
-  const deriveDefaultCustomImageDirectory = (userDataPath) => {
-    if (!userDataPath) return null;
-    const sanitized = userDataPath.replace(/\\/g, '/');
-    const segments = sanitized.split('/');
-    segments.pop();
-    return `${segments.join('/')}/images`;
-  };
-
   const updateUserData = (mutator) => {
     setUserData((prev) => {
       if (!prev) return prev;
@@ -143,87 +123,6 @@ export function App() {
       });
       return draft;
     });
-  };
-
-  const handleSelectCustomImageDirectory = (directory) => {
-    const resolved = directory ?? deriveDefaultCustomImageDirectory(storagePaths.currentUserDataPath);
-    setCustomImageDirectory(resolved || null);
-  };
-
-  const handlePersistCustomImageDirectory = async (directory) => {
-    const resolved = directory ?? deriveDefaultCustomImageDirectory(storagePaths.currentUserDataPath);
-    if (!resolved) {
-      showToast('error', 'Unable to determine image directory.');
-      return;
-    }
-    await window.gasbank.setCustomImageDirectory(resolved);
-    setCustomImageDirectory(resolved);
-    updateUserData((draft) => {
-      draft.storage = draft.storage || {};
-      draft.storage.customImageDirectory = resolved;
-    });
-    await refreshStoragePaths();
-    showToast('success', 'Custom image directory saved.');
-  };
-
-  const handleChangeStorageLocation = async () => {
-    const selection = await window.gasbank.chooseUserDataDirectory();
-    if (!selection || selection.canceled) return;
-    try {
-      const result = await window.gasbank.updateUserDataPath({ directory: selection.directory });
-      if (!result?.success) {
-        showToast('error', result?.message || 'Unable to update location.');
-        return;
-      }
-      if (result.userData) {
-        const normalized = normalizeUserData(result.userData);
-        setUserData(normalized);
-        setCustomImageDirectory(normalized.storage?.customImageDirectory || deriveDefaultCustomImageDirectory(result.userDataPath));
-      }
-      if (result.customImageDirectory) {
-        setCustomImageDirectory(result.customImageDirectory);
-      }
-      if (result.paths) {
-        setStoragePaths(result.paths);
-      } else {
-        await refreshStoragePaths();
-      }
-      showToast('success', 'Storage location updated.');
-    } catch (err) {
-      console.error(err);
-      showToast('error', 'Could not change storage location.');
-    }
-  };
-
-  const handleUseDefaultStorage = async () => {
-    if (storagePaths.currentUserDataPath === storagePaths.defaultUserDataPath) {
-      showToast('success', 'Already using the default storage location.');
-      return;
-    }
-    try {
-      const result = await window.gasbank.updateUserDataPath({ useDefault: true });
-      if (!result?.success) {
-        showToast('error', result?.message || 'Unable to update location.');
-        return;
-      }
-      if (result.userData) {
-        const normalized = normalizeUserData(result.userData);
-        setUserData(normalized);
-        setCustomImageDirectory(normalized.storage?.customImageDirectory || deriveDefaultCustomImageDirectory(result.userDataPath));
-      }
-      if (result.customImageDirectory) {
-        setCustomImageDirectory(result.customImageDirectory);
-      }
-      if (result.paths) {
-        setStoragePaths(result.paths);
-      } else {
-        await refreshStoragePaths();
-      }
-      showToast('success', 'Now using default storage location.');
-    } catch (err) {
-      console.error(err);
-      showToast('error', 'Could not switch to default storage.');
-    }
   };
 
   const startSessionFromConfig = (config, preselectedIds = null) => {
@@ -557,15 +456,32 @@ export function App() {
 
     const trimmedImage = question.image?.trim();
     const trimmedImageAlt = question.imageAlt?.trim();
-    const finalQuestion = {
-      ...question,
-      id: question.id?.trim() || `CUS-${Date.now()}`,
-      difficulty: question.difficulty?.toLowerCase() || 'medium',
-      educationalObjective: question.educationalObjective?.trim() || '',
-      answers: question.answers.map((answer, index) => ({
+    const preparedAnswers = (question.answers || [])
+      .filter((answer) => typeof answer?.text === 'string' && answer.text.trim().length > 0)
+      .map((answer) => ({
         ...answer,
-        isCorrect: answer.isCorrect || index === 0
-      }))
+        text: answer.text.trim(),
+        explanation: answer.explanation?.trim() || '',
+        isCorrect: !!answer.isCorrect
+      }));
+    if (!preparedAnswers.length) {
+      showToast('error', 'Add at least one answer choice before saving.');
+      return;
+    }
+    const correctAnswers = preparedAnswers.filter((answer) => answer.isCorrect);
+    if (correctAnswers.length !== 1) {
+      showToast('error', 'Select exactly one correct answer.');
+      return;
+    }
+    const finalQuestion = {
+      id: question.id?.trim() || `CUS-${Date.now()}`,
+      category: question.category?.trim() || '',
+      subcategory: question.subcategory?.trim() || '',
+      difficulty: question.difficulty?.toLowerCase() || 'medium',
+      questionText: question.questionText?.trim() || '',
+      answers: preparedAnswers,
+      didactic: question.didactic?.trim() || '',
+      educationalObjective: question.educationalObjective?.trim() || ''
     };
     if (trimmedImage) {
       finalQuestion.image = trimmedImage;
@@ -783,14 +699,7 @@ export function App() {
           />
         )}
         {activeView === 'settings' && (
-          <SettingsView
-            paths={storagePaths}
-            customImageDirectory={customImageDirectory}
-            onChooseLocation={handleChangeStorageLocation}
-            onUseDefault={handleUseDefaultStorage}
-            onSelectCustomImageDirectory={handleSelectCustomImageDirectory}
-            onPersistCustomImageDirectory={handlePersistCustomImageDirectory}
-          />
+          <SettingsView paths={storagePaths} customImageDirectory={customImageDirectory} />
         )}
       </main>
 
