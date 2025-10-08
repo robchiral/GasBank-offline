@@ -6,7 +6,25 @@ export function clone(data) {
 
 export function normalizeUserData(data) {
   const normalized = data ? { ...data } : {};
-  if (!normalized.userSettings) normalized.userSettings = { theme: 'system' };
+  const userSettings = normalized.userSettings ? { ...normalized.userSettings } : {};
+  if (!userSettings.theme) {
+    userSettings.theme = 'system';
+  }
+  const defaultSessionConfig = {
+    ...DEFAULT_SESSION_CONFIG,
+    ...(userSettings.defaultSessionConfig || {})
+  };
+  if (!Array.isArray(defaultSessionConfig.selectedCategories)) {
+    defaultSessionConfig.selectedCategories = [];
+  }
+  if (!Array.isArray(defaultSessionConfig.selectedSubcategories)) {
+    defaultSessionConfig.selectedSubcategories = [];
+  }
+  if (!defaultSessionConfig.flagFilter) {
+    defaultSessionConfig.flagFilter = 'any';
+  }
+  userSettings.defaultSessionConfig = defaultSessionConfig;
+  normalized.userSettings = userSettings;
   if (!normalized.storage) normalized.storage = { customImageDirectory: null };
   if (normalized.storage && typeof normalized.storage.customImageDirectory === 'undefined') {
     normalized.storage.customImageDirectory = null;

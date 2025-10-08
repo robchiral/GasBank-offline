@@ -22,9 +22,9 @@
 ## Key Views
 - **Dashboard:** Presents mastery summaries, quick-actions for starting/resuming sessions, and review flows for incorrect or flagged items.
 - **Session:** Runs active study sessions with support for tutor/exam modes, answer tracking, and per-question flagging.
-- **History:** Lists prior sessions with high-level results and re-opening support.
+- **History:** Lists prior sessions with high-level results and re-opening support. Recent question attempts stay in view thanks to a capped, scrollable table.
 - **Content:** Browses, filters, imports/exports, and creates questions. Custom question forms provide five answer slots (users may leave extras blank) and enforce a single correct choice.
-- **Settings:** Displays the absolute locations of `userData.json` and the custom image directory so users can manage backups externally.
+- **Settings:** Consolidates critical paths under a succinct “User Data” panel and exposes controls for editing the default session configuration (mode, filters, randomization) used when launching new study runs.
 
 ## Extensibility & Guardrails
 - The renderer treats the default assets as canonical; any enhancements should continue to clone/normalize state before writes to avoid corrupting user data.

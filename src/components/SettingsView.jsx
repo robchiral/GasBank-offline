@@ -1,6 +1,7 @@
 import React from 'react';
+import { DEFAULT_SESSION_CONFIG } from '../constants.js';
 
-export function SettingsView({ paths, customImageDirectory }) {
+export function SettingsView({ paths, customImageDirectory, sessionDefaults, onUpdateSessionDefaults }) {
   const defaultImageDirectory = React.useMemo(() => {
     if (!paths.currentUserDataPath) return null;
     const sanitized = paths.currentUserDataPath.replace(/\\/g, '/');
@@ -10,6 +11,42 @@ export function SettingsView({ paths, customImageDirectory }) {
   }, [paths.currentUserDataPath]);
 
   const resolvedImageDirectory = customImageDirectory || defaultImageDirectory;
+  const mergedDefaults = React.useMemo(
+    () => ({ ...DEFAULT_SESSION_CONFIG, ...(sessionDefaults || {}) }),
+    [sessionDefaults]
+  );
+
+  const [localDefaults, setLocalDefaults] = React.useState(mergedDefaults);
+
+  React.useEffect(() => {
+    setLocalDefaults(mergedDefaults);
+  }, [mergedDefaults]);
+
+  const isDirty = React.useMemo(() => {
+    return (
+      localDefaults.mode !== mergedDefaults.mode ||
+      localDefaults.numQuestions !== mergedDefaults.numQuestions ||
+      localDefaults.difficulty !== mergedDefaults.difficulty ||
+      localDefaults.statusFilter !== mergedDefaults.statusFilter ||
+      (localDefaults.flagFilter || 'any') !== (mergedDefaults.flagFilter || 'any') ||
+      !!localDefaults.randomize !== !!mergedDefaults.randomize ||
+      !!localDefaults.includeCustom !== !!mergedDefaults.includeCustom
+    );
+  }, [localDefaults, mergedDefaults]);
+
+  const handleSaveDefaults = () => {
+    if (!onUpdateSessionDefaults) return;
+    const sanitized = {
+      ...DEFAULT_SESSION_CONFIG,
+      ...localDefaults,
+      selectedCategories: Array.isArray(localDefaults.selectedCategories) ? localDefaults.selectedCategories : [],
+      selectedSubcategories: Array.isArray(localDefaults.selectedSubcategories) ? localDefaults.selectedSubcategories : [],
+      onlyCustom: typeof localDefaults.onlyCustom === 'boolean' ? localDefaults.onlyCustom : false
+    };
+    sanitized.numQuestions = Math.max(1, Math.min(100, Number(sanitized.numQuestions) || DEFAULT_SESSION_CONFIG.numQuestions));
+    onUpdateSessionDefaults(sanitized);
+    setLocalDefaults(sanitized);
+  };
 
   return (
     <div className="grid">
@@ -20,40 +57,121 @@ export function SettingsView({ paths, customImageDirectory }) {
       </div>
 
       <div className="card">
-        <h2>Application Data</h2>
-        <p style={{ color: 'var(--text-muted)' }}>
-          GasBank stores your progress, custom questions, and preferences inside a single <code>userData.json</code>{' '}
-          file. Use this path if you want to back up or inspect the data manually.
-        </p>
-        <div style={{ margin: '18px 0', padding: 18, borderRadius: 14, background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(56,189,248,0.14)' }}>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-            Managed location
+        <h2>User Data</h2>
+        <div className="info-block">
+          <div className="info-row">
+            <div className="info-label">userData.json</div>
+            <code className="info-value">{paths.currentUserDataPath || 'Unknown'}</code>
           </div>
-          <code style={{ fontSize: 14, wordBreak: 'break-all', color: 'var(--text)' }}>{paths.currentUserDataPath || 'Unknown'}</code>
+          <div className="info-row">
+            <div className="info-label">Custom images</div>
+            <code className="info-value">{resolvedImageDirectory || 'Unavailable'}</code>
+          </div>
         </div>
-        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 18 }}>
-          Location is controlled by the application; move or copy the file externally if you need your own backups.
-        </p>
       </div>
 
       <div className="card">
-        <h2>Custom Images</h2>
-        <p style={{ color: 'var(--text-muted)', marginBottom: 12 }}>
-          Images referenced by custom questions must reside in this directory. Reference files by filename (e.g.,
-          <code>arterial_line_ultrasound.png</code>) when adding questions.
+        <h2>Session Defaults</h2>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 18 }}>
+          Adjust the baseline configuration used when creating new sessions.
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-              Image directory
-            </div>
-            <code style={{ fontSize: 14, wordBreak: 'break-all', color: 'var(--text)' }}>
-              {resolvedImageDirectory || 'Unavailable'}
-            </code>
-          </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-            The folder is created automatically beside <code>userData.json</code>. Organize or back it up alongside the data file.
-          </p>
+
+        <div className="form-row">
+          <label>
+            Mode
+            <select
+              value={localDefaults.mode}
+              onChange={(event) => setLocalDefaults((prev) => ({ ...prev, mode: event.target.value }))}
+            >
+              <option value="Tutor">Tutor (instant feedback)</option>
+              <option value="Exam">Exam (review at end)</option>
+            </select>
+          </label>
+          <label>
+            Number of Questions
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={localDefaults.numQuestions}
+              onChange={(event) =>
+                setLocalDefaults((prev) => ({
+                  ...prev,
+                  numQuestions: Math.max(1, Math.min(100, Number(event.target.value) || 1))
+                }))
+              }
+            />
+          </label>
+        </div>
+
+        <div className="form-row">
+          <label>
+            Difficulty
+            <select
+              value={localDefaults.difficulty}
+              onChange={(event) => setLocalDefaults((prev) => ({ ...prev, difficulty: event.target.value }))}
+            >
+              <option value="all">All levels</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </label>
+          <label>
+            Status Filter
+            <select
+              value={localDefaults.statusFilter}
+              onChange={(event) => setLocalDefaults((prev) => ({ ...prev, statusFilter: event.target.value }))}
+            >
+              <option value="all">All questions</option>
+              <option value="unanswered">Unanswered only</option>
+              <option value="incorrect">Incorrect only</option>
+            </select>
+          </label>
+          <label>
+            Flag Filter
+            <select
+              value={localDefaults.flagFilter || 'any'}
+              onChange={(event) => setLocalDefaults((prev) => ({ ...prev, flagFilter: event.target.value }))}
+            >
+              <option value="any">Include flagged & unflagged</option>
+              <option value="flagged">Flagged only</option>
+              <option value="excludeFlagged">Exclude flagged</option>
+            </select>
+          </label>
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '12px 0' }}>
+          <input
+            type="checkbox"
+            checked={!!localDefaults.randomize}
+            onChange={(event) => setLocalDefaults((prev) => ({ ...prev, randomize: event.target.checked }))}
+            style={{ width: 18, height: 18 }}
+          />
+          Randomize question order
+        </label>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+          <input
+            type="checkbox"
+            checked={!!localDefaults.includeCustom}
+            onChange={(event) => setLocalDefaults((prev) => ({ ...prev, includeCustom: event.target.checked }))}
+            style={{ width: 18, height: 18 }}
+          />
+          Include custom questions
+        </label>
+
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button
+            className="button secondary"
+            type="button"
+            onClick={() => setLocalDefaults({ ...DEFAULT_SESSION_CONFIG })}
+          >
+            Reset
+          </button>
+          <button className="button" type="button" onClick={handleSaveDefaults} disabled={!isDirty}>
+            Save Defaults
+          </button>
         </div>
       </div>
     </div>

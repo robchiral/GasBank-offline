@@ -15,9 +15,9 @@
   - `Dashboard.jsx` — summary metrics, quick session actions.
   - `SessionView.jsx` — in-session question flow, answer submission, flagging.
   - `SessionConfigurator.jsx` — modal for building session parameters.
-  - `HistoryView.jsx` — past session list with filtering and restore logic.
+  - `HistoryView.jsx` — past session list with filtering, scrollable attempt log, and restore logic.
   - `ContentView.jsx` — question browser, import/export utilities, custom question editor.
-  - `SettingsView.jsx` — displays storage paths for user data and custom images.
+  - `SettingsView.jsx` — surfaces user data paths and lets users adjust default session configuration.
   - `Charts.jsx` — reusable chart primitives for dashboard analytics.
   - `Toast.jsx` — lightweight notification component.
 - `constants.js` — shared enums/defaults (session config, status labels).

@@ -347,6 +347,40 @@ export const globalCss = `
     background: rgba(148, 163, 184, 0.16);
   }
 
+  .table-scroll {
+    max-height: 360px;
+    overflow-y: auto;
+    margin-top: 8px;
+  }
+
+  .table-scroll table {
+    margin: 0;
+  }
+
+  .info-block {
+    display: grid;
+    gap: 14px;
+  }
+
+  .info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .info-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+
+  .info-value {
+    font-size: 14px;
+    color: var(--text);
+    word-break: break-all;
+  }
+
   table {
     width: 100%;
     border-collapse: collapse;

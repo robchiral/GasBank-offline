@@ -35,6 +35,9 @@ export function App() {
     defaultUserDataPath: ''
   });
   const [customImageDirectory, setCustomImageDirectory] = useState(null);
+  const sessionDefaults = useMemo(() => {
+    return { ...DEFAULT_SESSION_CONFIG, ...(userData?.userSettings?.defaultSessionConfig || {}) };
+  }, [userData?.userSettings?.defaultSessionConfig]);
 
   useEffect(() => {
     injectGlobalStyles();
@@ -49,6 +52,7 @@ export function App() {
         setBaseQuestions(payload.questions || []);
         const normalizedUser = normalizeUserData(payload.userData || {});
         setUserData(normalizedUser);
+        setSessionConfig({ ...DEFAULT_SESSION_CONFIG, ...(normalizedUser.userSettings?.defaultSessionConfig || {}) });
         if (payload.paths) {
           setStoragePaths(payload.paths);
         }
@@ -302,7 +306,7 @@ export function App() {
       showToast('success', 'Fantastic! No incorrect questions remain.');
       return;
     }
-    const config = { ...DEFAULT_SESSION_CONFIG, statusFilter: 'incorrect', numQuestions: incorrectIds.length };
+    const config = { ...sessionDefaults, statusFilter: 'incorrect', numQuestions: incorrectIds.length };
     startSessionFromConfig(config, incorrectIds);
   };
 
@@ -313,7 +317,7 @@ export function App() {
       return;
     }
     const config = {
-      ...DEFAULT_SESSION_CONFIG,
+      ...sessionDefaults,
       statusFilter: 'all',
       flagFilter: 'flagged',
       numQuestions: flaggedIds.length
@@ -329,6 +333,7 @@ export function App() {
       const normalized = normalizeUserData(result.userData);
       setUserData(normalized);
       setCustomImageDirectory(normalized.storage?.customImageDirectory || null);
+      setSessionConfig({ ...DEFAULT_SESSION_CONFIG, ...(normalized.userSettings?.defaultSessionConfig || {}) });
       showToast('success', 'Progress reset.');
     } catch (err) {
       console.error(err);
@@ -428,6 +433,35 @@ export function App() {
       };
     });
     setActiveView('session');
+  };
+
+  const handleUpdateSessionDefaults = (config) => {
+    const sanitized = {
+      ...DEFAULT_SESSION_CONFIG,
+      ...sessionDefaults,
+      ...config,
+      selectedCategories: Array.isArray(config.selectedCategories)
+        ? config.selectedCategories
+        : Array.isArray(sessionDefaults.selectedCategories)
+          ? sessionDefaults.selectedCategories
+          : [],
+      selectedSubcategories: Array.isArray(config.selectedSubcategories)
+        ? config.selectedSubcategories
+        : Array.isArray(sessionDefaults.selectedSubcategories)
+          ? sessionDefaults.selectedSubcategories
+          : []
+    };
+    sanitized.numQuestions = Math.max(
+      1,
+      Math.min(100, Number(sanitized.numQuestions) || DEFAULT_SESSION_CONFIG.numQuestions)
+    );
+    sanitized.onlyCustom = typeof sanitized.onlyCustom === 'boolean' ? sanitized.onlyCustom : !!sessionDefaults.onlyCustom;
+    updateUserData((draft) => {
+      draft.userSettings = draft.userSettings || {};
+      draft.userSettings.defaultSessionConfig = sanitized;
+    });
+    setSessionConfig(sanitized);
+    showToast('success', 'Session defaults updated.');
   };
 
   const handleDeleteSession = (sessionId) => {
@@ -646,7 +680,7 @@ export function App() {
             summary={summary}
             breakdown={breakdown}
             onStartSession={() => {
-              setSessionConfig({ ...DEFAULT_SESSION_CONFIG });
+              setSessionConfig({ ...sessionDefaults });
               setShowConfigurator(true);
             }}
             onReviewIncorrect={handleReviewIncorrect}
@@ -654,7 +688,10 @@ export function App() {
             onResumeSession={handleResumeSession}
             hasActiveSession={!!userData?.activeSession}
             hasFlagged={flaggedCount > 0}
-            onOpenConfig={() => setShowConfigurator(true)}
+            onOpenConfig={() => {
+              setSessionConfig({ ...sessionDefaults });
+              setShowConfigurator(true);
+            }}
           />
         )}
         {activeView === 'session' && (
@@ -699,7 +736,12 @@ export function App() {
           />
         )}
         {activeView === 'settings' && (
-          <SettingsView paths={storagePaths} customImageDirectory={customImageDirectory} />
+          <SettingsView
+            paths={storagePaths}
+            customImageDirectory={customImageDirectory}
+            sessionDefaults={sessionDefaults}
+            onUpdateSessionDefaults={handleUpdateSessionDefaults}
+          />
         )}
       </main>
 
