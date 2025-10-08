@@ -302,6 +302,7 @@ export function ContentView({
             const isCustom = customQuestionIds.has(question.id);
             const isFlagged = flaggedSet.has(question.id);
             const isSelected = selectedIds.has(question.id);
+            const objective = question.educationalObjective || 'Educational objective unavailable.';
             return (
               <div
                 key={question.id}
@@ -325,7 +326,6 @@ export function ContentView({
                     />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
                       <div style={{ fontWeight: 600 }}>{question.id || 'Custom (pending ID)'}</div>
-                      <div style={{ color: 'var(--text-muted)' }}>{question.questionText}</div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -351,11 +351,9 @@ export function ContentView({
                     Image: <code>{question.image}</code>
                   </div>
                 )}
-                {question.educationalObjective && (
-                  <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                    Objective: {question.educationalObjective}
-                  </div>
-                )}
+                <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                  Objective: {objective}
+                </div>
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                   {isCustom && (
                     <button className="button danger" onClick={() => handleDeleteSingle(question.id)}>

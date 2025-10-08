@@ -284,6 +284,7 @@ export const globalCss = `
     display: flex;
     flex-direction: column;
     gap: 20px;
+    padding-bottom: 140px;
   }
 
   .session-container {
@@ -299,18 +300,20 @@ export const globalCss = `
   }
 
   .session-controls-bar {
-    position: sticky;
-    bottom: 24px;
+    position: fixed;
+    left: 28px;
+    right: 28px;
+    bottom: 28px;
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 16px 20px;
+    padding: 16px 28px;
     border-radius: 18px;
     background: rgba(12, 20, 38, 0.92);
     border: 1px solid rgba(56, 189, 248, 0.16);
     box-shadow: 0 12px 32px rgba(6, 16, 32, 0.55);
     backdrop-filter: blur(12px);
-    z-index: 5;
+    z-index: 50;
   }
 
   .session-controls-bar .button {
@@ -393,8 +396,9 @@ export const globalCss = `
   }
 
   .question-text {
-    font-size: 18px;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.65;
   }
 
   .question-text p {
@@ -487,7 +491,8 @@ export const globalCss = `
   @media (max-width: 720px) {
     .session-controls-bar {
       flex-wrap: wrap;
-      position: sticky;
+      left: 16px;
+      right: 16px;
       bottom: 16px;
       gap: 10px;
     }

@@ -56,12 +56,13 @@ export function HistoryView({
                 {attempts.map((row) => {
                   const question = questionsMap.get(row.id);
                   const resultClass = row.attempt.result === 'correct' ? 'pill correct' : 'pill incorrect';
+                  const objective = question?.educationalObjective || 'Educational objective unavailable.';
                   return (
                     <tr key={`${row.id}-${row.index}-${row.attempt.timestamp}`}>
                       <td style={{ maxWidth: 360 }}>
                         <div style={{ fontWeight: 600 }}>{row.id}</div>
                         <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                          {(question && question.questionText) || 'Deleted question'}
+                          {question ? objective : 'Deleted question'}
                         </div>
                       </td>
                       <td style={{ color: 'var(--text-muted)' }}>
