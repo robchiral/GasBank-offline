@@ -24,6 +24,7 @@ export const globalCss = `
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     background: var(--bg);
     color: var(--text);
+    overflow: hidden;
   }
 
   button {
@@ -346,6 +347,24 @@ export const globalCss = `
     font-size: 15px;
     line-height: 1.6;
     color: var(--text);
+  }
+
+  .markdown-content .katex-mathml {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  .markdown-content .katex-html {
+    display: inline-block;
+  }
+
+  .markdown-content .katex-display {
+    display: block;
+    margin: 18px 0;
+    text-align: center;
   }
 
   .markdown-content p {

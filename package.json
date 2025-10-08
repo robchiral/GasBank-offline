@@ -5,18 +5,21 @@
   "main": "electron/main.js",
   "scripts": {
     "build": "npm run build:renderer",
-    "build:renderer": "esbuild src/main.jsx --bundle --outdir=dist --entry-names=[name] --loader:.jsx=jsx --define:process.env.NODE_ENV=\\\"production\\\" --platform=browser --format=esm --splitting",
-    "watch": "esbuild src/main.jsx --bundle --outdir=dist --entry-names=[name] --loader:.jsx=jsx --define:process.env.NODE_ENV=\\\"development\\\" --platform=browser --format=esm --splitting --watch",
+    "build:renderer": "esbuild src/main.jsx --bundle --outdir=dist --entry-names=[name] --loader:.jsx=jsx --loader:.css=css --loader:.woff=file --loader:.woff2=file --loader:.ttf=file --define:process.env.NODE_ENV=\\\"production\\\" --platform=browser --format=esm --splitting",
+    "watch": "esbuild src/main.jsx --bundle --outdir=dist --entry-names=[name] --loader:.jsx=jsx --loader:.css=css --loader:.woff=file --loader:.woff2=file --loader:.ttf=file --define:process.env.NODE_ENV=\\\"development\\\" --platform=browser --format=esm --splitting --watch",
     "start": "npm run build && electron .",
     "dev": "concurrently \\\"npm:watch\\\" \\\"electron .\\\""
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "katex": "^0.16.11",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^9.0.3",
-    "remark-gfm": "^4.0.0"
+    "remark-gfm": "^4.0.0",
+    "remark-math": "^6.0.0",
+    "rehype-katex": "^7.0.0"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

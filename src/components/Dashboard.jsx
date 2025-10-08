@@ -62,7 +62,11 @@ export function Dashboard({
           <button className="button" onClick={onOpenConfig}>
             Start New Session
           </button>
-          <button className="button secondary" onClick={onReviewIncorrect}>
+          <button
+            className="button secondary"
+            onClick={onReviewIncorrect}
+            disabled={summary.incorrect === 0}
+          >
             Review Incorrect Questions
           </button>
           <button className="button secondary" onClick={onReviewFlagged} disabled={!hasFlagged}>

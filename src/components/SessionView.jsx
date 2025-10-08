@@ -104,7 +104,9 @@ export function SessionView({
                 >
                   <div style={{ fontWeight: 600, marginBottom: 6 }}>{String.fromCharCode(65 + index)}. {answer.text}</div>
                   {showFeedback && (
-                    <div className="explanation">{answer.explanation}</div>
+                    <MarkdownContent className="explanation">
+                      {answer.explanation}
+                    </MarkdownContent>
                   )}
                 </div>
               );

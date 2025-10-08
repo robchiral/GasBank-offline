@@ -8,7 +8,7 @@
 - **Platform:** Electron shell embedding a React single-page app.
 - **Entry Point:** `electron/main.js` bootstraps the window, serves `src/index.html`, and exposes file-system helpers through `preload.js`.
 - **Frontend Stack:** React (with hooks) plus lightweight CSS-in-JS globals. All first-party UI lives in `src/components`.
-- **Rich Content Rendering:** Question prompts, stems, and didactic summaries flow through `react-markdown` with the GitHub-flavored Markdown plugin so tables, lists, and other Markdown affordances render consistently inside the app.
+- **Rich Content Rendering:** Question prompts, stems, and didactic summaries flow through `react-markdown` with GitHub-flavored Markdown plus `remark-math`/`rehype-katex`, enabling tables, lists, emphasis, and inline or block equations to render consistently inside the app.
 - **Persistence:**
   - `data/questions.json` ships with the app and remains immutable at runtime.
   - A per-user `userData.json` is stored under the OS-specific Electron `userData` directory on first launch.
@@ -36,4 +36,4 @@
 - Backup automation relies on accurate attempt tracking; filesystem helpers guard against missing directories before writing timestamped snapshots.
 - File operations are centralized in the Electron main process to preserve sandbox boundaries and ease cross-platform support.
 - Shared form helpers (`field-group`, `checkbox-inline`) keep checkbox-based controls vertically aligned with their peer inputs, reducing ad-hoc spacing overrides when new settings panels are added.
-- Question content accepts GitHub-flavored Markdown so authors can embed lists, tables, emphasis, and hyperlinks inside prompts or didactics without introducing custom HTML.
+- Question content accepts GitHub-flavored Markdown (with KaTeX-backed math) so authors can embed lists, tables, emphasis, hyperlinks, and equations inside prompts or didactics without introducing custom HTML.

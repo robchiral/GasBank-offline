@@ -155,5 +155,36 @@
     ],
     "didactic": "Opioid-induced hyperalgesia is mediated by NMDA receptor activation and central sensitization. Multimodal analgesia with low-dose ketamine, alpha-2 agonists, or magnesium offers benefit. Abrupt cessation of baseline opioids is contraindicated.",
     "educationalObjective": "Select ketamine as an evidence-based adjunct to mitigate opioid-induced hyperalgesia in opioid-tolerant patients."
+  },
+  {
+    "id": "ANES006",
+    "category": "Basic Sciences",
+    "subcategory": "Physiology",
+    "difficulty": "medium",
+    "questionText": "An intubated patient is receiving an inspired oxygen fraction of 0.5 in Denver (barometric pressure 640 mm Hg). Arterial blood gas analysis reveals a PaCO2 of 47 mm Hg, and you estimate a respiratory quotient of 0.8.\n\nUse the alveolar gas equation:\n\n$$P_{A\\mathrm{O}_2} = F_{I\\mathrm{O}_2}\\big(P_B - P_{H_2O}\\big) - \\frac{P_{A\\mathrm{CO}_2}}{R}$$\n\nWhat is the approximate alveolar oxygen partial pressure?",
+    "answers": [
+      {
+        "text": "265 mm Hg",
+        "isCorrect": false,
+        "explanation": "This value does not account for the reduced barometric pressure at altitude and overestimates alveolar oxygenation."
+      },
+      {
+        "text": "280 mm Hg",
+        "isCorrect": false,
+        "explanation": "Neglecting the PaCO2 term after adjusting for water vapor would produce a value near this magnitude."
+      },
+      {
+        "text": "238 mm Hg",
+        "isCorrect": true,
+        "explanation": "Substituting the provided values yields $0.5 \\times (640 - 47) - 47 / 0.8 \\approx 238$ mm Hg."
+      },
+      {
+        "text": "198 mm Hg",
+        "isCorrect": false,
+        "explanation": "This answer underestimates the contribution from the inspired fraction after correcting for water vapor."
+      }
+    ],
+    "didactic": "Plugging the values into the alveolar gas equation—$P_{A\\mathrm{O}_2} = 0.5 \\times (640 - 47) - 47 / 0.8$—first removes water vapor pressure (593 mm Hg), yielding $296.5$ mm Hg, then subtracts the CO$_2$ term ($58.75$ mm Hg) for an approximate alveolar oxygen tension of $296.5 - 58.75 \\approx 238$ mm Hg.",
+    "educationalObjective": "Apply the alveolar gas equation to estimate alveolar oxygen tension while accounting for barometric pressure, water vapor pressure, and the respiratory quotient."
   }
 ]
