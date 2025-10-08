@@ -35,7 +35,7 @@
     "category": "Basic Sciences",
     "subcategory": "Physiology",
     "difficulty": "medium",
-    "questionText": "During a rapid sequence induction, which physiologic response to succinylcholine is most concerning in a patient with upregulated extrajunctional acetylcholine receptors?",
+    "questionText": "A 62-year-old man with 40% total body surface area burns 4 weeks ago presents for excisional debridement. He remains intubated and bedbound in the ICU. Pre-induction labs are reviewed.\n\n**Perioperative Laboratory Results**\n\n| Test | Value | Reference Range |\n| --- | --- | --- |\n| Potassium | 6.1 mEq/L | 3.5-5.0 mEq/L |\n| Creatine kinase | 11,500 U/L | <200 U/L |\n| Bicarbonate | 19 mEq/L | 22-28 mEq/L |\n\nDuring a rapid sequence induction, which physiologic response to succinylcholine is most concerning in this patient with upregulated extrajunctional acetylcholine receptors?",
     "answers": [
       {
         "text": "Severe bradycardia",
@@ -58,7 +58,7 @@
         "explanation": "Succinylcholine is a triggering agent for malignant hyperthermia; however, the risk is unrelated to extrajunctional receptors."
       }
     ],
-    "didactic": "Conditions such as burns, neuromuscular disorders, and prolonged immobilization upregulate extrajunctional acetylcholine receptors. Succinylcholine-induced depolarization opens these channels, leading to substantial potassium efflux and life-threatening hyperkalemia.",
+    "didactic": "Succinylcholine depolarizes the neuromuscular junction by opening acetylcholine receptors, and extrajunctional proliferation magnifies potassium efflux to dangerous levels.\n\nKey points:\n\n- Burn, crush, denervation, and prolonged immobilization injuries upregulate extrajunctional receptors after the first 24 hours.\n- Potassium release can trigger sudden ventricular arrhythmias or asystole when succinylcholine is administered.\n- Nondepolarizing neuromuscular blockers (e.g., rocuronium) mitigate this risk in the subacute and chronic phases of injury.",
     "educationalObjective": "Identify the risk of life-threatening hyperkalemia when succinylcholine is administered to patients with upregulated extrajunctional acetylcholine receptors."
   },
   {

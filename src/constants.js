@@ -3,7 +3,6 @@ export const DEFAULT_SESSION_CONFIG = {
   numQuestions: 10,
   randomize: true,
   selectedCategories: [],
-  selectedSubcategories: [],
   difficulty: 'all',
   statusFilter: 'unanswered',
   includeCustom: true,

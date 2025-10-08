@@ -280,6 +280,12 @@ export const globalCss = `
     color: var(--text-muted);
   }
 
+  .session-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
   .session-container {
     display: grid;
     grid-template-columns: 3fr 1fr;
@@ -292,10 +298,213 @@ export const globalCss = `
     gap: 18px;
   }
 
+  .session-controls-bar {
+    position: sticky;
+    bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border-radius: 18px;
+    background: rgba(12, 20, 38, 0.92);
+    border: 1px solid rgba(56, 189, 248, 0.16);
+    box-shadow: 0 12px 32px rgba(6, 16, 32, 0.55);
+    backdrop-filter: blur(12px);
+    z-index: 5;
+  }
+
+  .session-controls-bar .button {
+    min-width: 120px;
+  }
+
+  .controls-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .controls-spacer {
+    flex: 1 1 auto;
+  }
+
   .answers {
     display: flex;
     flex-direction: column;
     gap: 12px;
+  }
+
+  .question-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .markdown-content {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  .markdown-content p {
+    margin: 0 0 12px;
+  }
+
+  .markdown-content ul,
+  .markdown-content ol {
+    margin: 0 0 12px 20px;
+    padding-left: 0;
+  }
+
+  .markdown-content li + li {
+    margin-top: 6px;
+  }
+
+  .markdown-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+
+  .markdown-content th,
+  .markdown-content td {
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    padding: 8px 10px;
+    text-align: left;
+  }
+
+  .markdown-content th {
+    background: rgba(56, 189, 248, 0.18);
+    color: var(--primary);
+  }
+
+  .markdown-content tbody tr:nth-child(even) {
+    background: rgba(15, 23, 42, 0.5);
+  }
+
+  .markdown-table-wrapper {
+    overflow-x: auto;
+    border-radius: 12px;
+  }
+
+  .markdown-table-wrapper table {
+    margin: 0;
+    background: rgba(10, 18, 34, 0.8);
+  }
+
+  .question-text {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .question-text p {
+    margin: 0 0 12px;
+  }
+
+  .question-didactic,
+  .question-objective {
+    color: var(--text-muted);
+  }
+
+  .multi-select {
+    position: relative;
+    width: 100%;
+  }
+
+  .multi-select-toggle {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    background: rgba(56, 189, 248, 0.08);
+    color: var(--text);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    transition: background 0.2s, border 0.2s;
+  }
+
+  .multi-select-toggle.open {
+    border-color: rgba(56, 189, 248, 0.45);
+    background: rgba(56, 189, 248, 0.18);
+  }
+
+  .multi-select-indicator {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .multi-select-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 260px;
+    max-height: 260px;
+    overflow-y: auto;
+    background: rgba(12, 21, 38, 0.98);
+    border: 1px solid rgba(56, 189, 248, 0.22);
+    border-radius: 14px;
+    box-shadow: 0 18px 42px rgba(5, 12, 24, 0.55);
+    padding: 12px;
+    z-index: 1010;
+  }
+
+  .multi-select-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 4px;
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  .multi-select-option input {
+    width: 16px;
+    height: 16px;
+  }
+
+  .multi-select-divider {
+    height: 1px;
+    background: rgba(148, 163, 184, 0.24);
+    margin: 8px 0;
+  }
+
+  .multi-select-help {
+    margin: 6px 0 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  @media (max-width: 1100px) {
+    .session-container {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .session-controls-bar {
+      flex-wrap: wrap;
+      position: sticky;
+      bottom: 16px;
+      gap: 10px;
+    }
+
+    .session-controls-bar .button {
+      flex: 1 1 calc(50% - 10px);
+      min-width: unset;
+    }
+
+    .controls-spacer {
+      display: none;
+    }
+
+    .controls-group {
+      width: 100%;
+      justify-content: flex-end;
+    }
   }
 
   .answer-option {

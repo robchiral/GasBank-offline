@@ -76,7 +76,6 @@ export function SettingsView({
       ...DEFAULT_SESSION_CONFIG,
       ...localDefaults,
       selectedCategories: Array.isArray(localDefaults.selectedCategories) ? localDefaults.selectedCategories : [],
-      selectedSubcategories: Array.isArray(localDefaults.selectedSubcategories) ? localDefaults.selectedSubcategories : [],
       onlyCustom: typeof localDefaults.onlyCustom === 'boolean' ? localDefaults.onlyCustom : false
     };
     sanitized.numQuestions = Math.max(1, Math.min(100, Number(sanitized.numQuestions) || DEFAULT_SESSION_CONFIG.numQuestions));

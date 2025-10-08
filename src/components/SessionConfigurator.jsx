@@ -1,12 +1,37 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_SESSION_CONFIG } from '../constants.js';
 
 export function SessionConfigurator({ filters, config, onUpdate, onCancel, onCreate, getMatchingCount }) {
   const [localConfig, setLocalConfig] = useState({ ...DEFAULT_SESSION_CONFIG, ...config });
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const categoryDropdownRef = useRef(null);
 
   useEffect(() => {
     setLocalConfig({ ...DEFAULT_SESSION_CONFIG, ...config });
+    setCategoryMenuOpen(false);
   }, [config]);
+
+  useEffect(() => {
+    if (!categoryMenuOpen) return;
+    const handleClickOutside = (event) => {
+      if (!categoryDropdownRef.current) return;
+      if (!categoryDropdownRef.current.contains(event.target)) {
+        setCategoryMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [categoryMenuOpen]);
+
+  useEffect(() => {
+    setLocalConfig((prev) => {
+      if (!prev.selectedCategories?.length) return prev;
+      const allowed = new Set(filters.categories);
+      const filtered = prev.selectedCategories.filter((category) => allowed.has(category));
+      if (filtered.length === prev.selectedCategories.length) return prev;
+      return { ...prev, selectedCategories: filtered };
+    });
+  }, [filters.categories]);
 
   const toggleCategory = (category) => {
     setLocalConfig((prev) => {
@@ -18,15 +43,13 @@ export function SessionConfigurator({ filters, config, onUpdate, onCancel, onCre
     });
   };
 
-  const toggleSubcategory = (subcategory) => {
-    setLocalConfig((prev) => {
-      const present = prev.selectedSubcategories.includes(subcategory);
-      const next = present
-        ? prev.selectedSubcategories.filter((entry) => entry !== subcategory)
-        : [...prev.selectedSubcategories, subcategory];
-      return { ...prev, selectedSubcategories: next };
-    });
-  };
+  const categoryLabel = useMemo(() => {
+    const selections = localConfig.selectedCategories || [];
+    if (!selections.length) return 'All categories';
+    if (selections.length === 1) return selections[0];
+    if (selections.length === 2) return `${selections[0]}, ${selections[1]}`;
+    return `${selections.length} selected`;
+  }, [localConfig.selectedCategories]);
 
   const matchingCount = React.useMemo(() => {
     if (!getMatchingCount) return 0;
@@ -124,48 +147,50 @@ export function SessionConfigurator({ filters, config, onUpdate, onCancel, onCre
 
         <div className="divider" />
         <h3>Categories</h3>
-        <div className="tag-list" style={{ marginBottom: 20 }}>
-          {filters.categories.map((category) => {
-            const active = localConfig.selectedCategories.includes(category);
-            return (
-              <button
-                key={category}
-                className="button secondary"
-                style={{
-                  background: active ? 'rgba(56, 189, 248, 0.25)' : 'rgba(56, 189, 248, 0.08)',
-                  border: active ? '1px solid rgba(56, 189, 248, 0.6)' : '1px solid rgba(56, 189, 248, 0.2)',
-                  color: active ? 'var(--primary)' : 'var(--text-muted)'
-                }}
-                onClick={() => toggleCategory(category)}
-              >
-                {category}
-              </button>
-            );
-          })}
-          {filters.categories.length === 0 && <span style={{ color: 'var(--text-muted)' }}>No categories available.</span>}
-        </div>
-
-        <h3>Subcategories</h3>
-        <div className="tag-list" style={{ marginBottom: 20 }}>
-          {filters.subcategories.map((subcategory) => {
-            const active = localConfig.selectedSubcategories.includes(subcategory);
-            return (
-              <button
-                key={subcategory}
-                className="button secondary"
-                style={{
-                  background: active ? 'rgba(168, 85, 247, 0.3)' : 'rgba(168, 85, 247, 0.08)',
-                  border: active ? '1px solid rgba(168, 85, 247, 0.6)' : '1px solid rgba(168, 85, 247, 0.25)',
-                  color: active ? 'var(--secondary)' : 'var(--text-muted)'
-                }}
-                onClick={() => toggleSubcategory(subcategory)}
-              >
-                {subcategory}
-              </button>
-            );
-          })}
-          {filters.subcategories.length === 0 && <span style={{ color: 'var(--text-muted)' }}>No subcategories available.</span>}
-        </div>
+        {filters.categories.length === 0 ? (
+          <div style={{ color: 'var(--text-muted)', marginBottom: 20 }}>No categories available.</div>
+        ) : (
+          <div style={{ marginBottom: 8 }} ref={categoryDropdownRef} className="multi-select">
+            <button
+              type="button"
+              className={`multi-select-toggle${categoryMenuOpen ? ' open' : ''}`}
+              onClick={() => setCategoryMenuOpen((prev) => !prev)}
+            >
+              <span>{categoryLabel}</span>
+              <span className="multi-select-indicator" aria-hidden="true">
+                {categoryMenuOpen ? '^' : 'v'}
+              </span>
+            </button>
+            {categoryMenuOpen && (
+              <div className="multi-select-menu">
+                <label className="multi-select-option">
+                  <input
+                    type="checkbox"
+                    checked={(localConfig.selectedCategories || []).length === 0}
+                    onChange={() => {
+                      setLocalConfig((prev) => ({ ...prev, selectedCategories: [] }));
+                    }}
+                  />
+                  <span>All categories</span>
+                </label>
+                <div className="multi-select-divider" />
+                {filters.categories.map((category) => (
+                  <label key={category} className="multi-select-option">
+                    <input
+                      type="checkbox"
+                      checked={localConfig.selectedCategories.includes(category)}
+                      onChange={() => toggleCategory(category)}
+                    />
+                    <span>{category}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {filters.categories.length > 0 && (
+          <p className="multi-select-help">Leave blank to include all categories.</p>
+        )}
 
         <div style={{ color: 'var(--text-muted)', marginBottom: 20 }}>
           Matching questions: <span style={{ fontWeight: 600 }}>{matchingCount}</span>

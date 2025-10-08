@@ -22,9 +22,6 @@ export function normalizeUserData(data) {
   if (!Array.isArray(defaultSessionConfig.selectedCategories)) {
     defaultSessionConfig.selectedCategories = [];
   }
-  if (!Array.isArray(defaultSessionConfig.selectedSubcategories)) {
-    defaultSessionConfig.selectedSubcategories = [];
-  }
   if (!defaultSessionConfig.flagFilter) {
     defaultSessionConfig.flagFilter = 'any';
   }
@@ -110,18 +107,15 @@ export function computeCategoryPerformance(allQuestions, userData) {
 
 export function collectFilters(allQuestions) {
   const categories = new Set();
-  const subcategories = new Set();
   const difficulties = new Set();
 
   allQuestions.forEach((question) => {
     if (question.category) categories.add(question.category);
-    if (question.subcategory) subcategories.add(question.subcategory);
     if (question.difficulty) difficulties.add(question.difficulty.toLowerCase());
   });
 
   return {
     categories: Array.from(categories).sort(),
-    subcategories: Array.from(subcategories).sort(),
     difficulties: Array.from(difficulties).sort(
       (a, b) => difficultyOrder.indexOf(a) - difficultyOrder.indexOf(b)
     )

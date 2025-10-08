@@ -200,7 +200,6 @@ export function App() {
         if (normalized.onlyCustom && !isCustom) return;
         if (normalized.difficulty !== 'all' && question.difficulty?.toLowerCase() !== normalized.difficulty) return;
         if (normalized.selectedCategories.length && !normalized.selectedCategories.includes(question.category)) return;
-        if (normalized.selectedSubcategories.length && !normalized.selectedSubcategories.includes(question.subcategory)) return;
         if (normalized.statusFilter === 'unanswered' && determineStatus(userData?.questionStats?.[question.id]) !== 'unanswered') return;
         if (normalized.statusFilter === 'incorrect' && determineStatus(userData?.questionStats?.[question.id]) !== 'incorrect') return;
         const isFlagged = flaggedSet.has(question.id);
@@ -623,11 +622,6 @@ export function App() {
         ? config.selectedCategories
         : Array.isArray(sessionDefaults.selectedCategories)
           ? sessionDefaults.selectedCategories
-          : [],
-      selectedSubcategories: Array.isArray(config.selectedSubcategories)
-        ? config.selectedSubcategories
-        : Array.isArray(sessionDefaults.selectedSubcategories)
-          ? sessionDefaults.selectedSubcategories
           : []
     };
     sanitized.numQuestions = Math.max(
