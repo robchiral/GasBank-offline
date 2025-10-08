@@ -10,8 +10,10 @@
 - **Frontend Stack:** React (with hooks) plus lightweight CSS-in-JS globals. All first-party UI lives in `src/components`.
 - **Persistence:**
   - `data/questions.json` ships with the app and remains immutable at runtime.
-  - A per-user `userData.json` is stored under the OS-specific Electron `userData` directory on first launch. The path is fixed; users cannot relocate it.
-  - The app automatically manages a sibling `images/` directory for custom question assets and surfaces the resolved paths in Settings.
+  - A per-user `userData.json` is stored under the OS-specific Electron `userData` directory on first launch.
+  - A sibling `gasbank.config.json` lives in the same directory and records the active `userData.json` path plus the resolved custom image directory so the main process can restore state before loading renderer data.
+  - Core questions reference assets under `data/images/`; custom questions load images from the managed `<user-data>/images/` directory. Settings surfaces both paths so authors know where to place files.
+  - The renderer can schedule timestamped backups of `userData.json` to a user-selected directory. Manual backups are one-click; auto-backups default to every 10 recorded attempts and reset the attempt counter after each successful write.
 
 ## Data Flow
 1. On launch the renderer calls `gasbank.loadData()`, which loads bundled questions and ensures `userData.json`/`images/`.
@@ -23,10 +25,12 @@
 - **Dashboard:** Presents mastery summaries, quick-actions for starting/resuming sessions, and review flows for incorrect or flagged items.
 - **Session:** Runs active study sessions with support for tutor/exam modes, answer tracking, and per-question flagging.
 - **History:** Lists prior sessions with high-level results and re-opening support. Recent question attempts stay in view thanks to a capped, scrollable table.
-- **Content:** Browses, filters, imports/exports, and creates questions. Custom question forms provide five answer slots (users may leave extras blank) and enforce a single correct choice.
-- **Settings:** Consolidates critical paths under a succinct “User Data” panel and exposes controls for editing the default session configuration (mode, filters, randomization) used when launching new study runs.
+- **Content:** Browses, filters, imports/exports, and creates questions. The custom question editor starts with two answer slots, lets authors add/remove choices up to six, and requires every visible answer to contain text while keeping explanations/objectives optional. A single correct answer is still enforced.
+- **Settings:** Consolidates critical paths under a succinct “User Data” panel, exposes backup directory and auto-backup controls, and lets users adjust the default session configuration (mode, filters, randomization) used when launching new study runs.
+- **Session Configurator:** Modal for assembling session parameters now shows the live count of questions matching the selected filters and prevents launching when the pool is empty.
 
 ## Extensibility & Guardrails
 - The renderer treats the default assets as canonical; any enhancements should continue to clone/normalize state before writes to avoid corrupting user data.
-- Custom content expects images to live under the managed image directory; the UI only references filenames to keep paths portable across machines.
+- Core asset references stay rooted in `data/images/`, while custom content expects images to live under the managed user-data `images/` directory; the UI only references filenames to keep paths portable across machines.
+- Backup automation relies on accurate attempt tracking; filesystem helpers guard against missing directories before writing timestamped snapshots.
 - File operations are centralized in the Electron main process to preserve sandbox boundaries and ease cross-platform support.

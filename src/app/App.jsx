@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dashboard } from '../components/Dashboard.jsx';
 import { SessionView } from '../components/SessionView.jsx';
 import { HistoryView } from '../components/HistoryView.jsx';
@@ -21,6 +21,8 @@ import {
 } from '../utils/dataUtils.js';
 import { injectGlobalStyles } from '../styles/globalStyles.js';
 
+const MIN_REQUIRED_ANSWERS = 2;
+
 export function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,9 +37,23 @@ export function App() {
     defaultUserDataPath: ''
   });
   const [customImageDirectory, setCustomImageDirectory] = useState(null);
+  const autoBackupInFlight = useRef(false);
   const sessionDefaults = useMemo(() => {
     return { ...DEFAULT_SESSION_CONFIG, ...(userData?.userSettings?.defaultSessionConfig || {}) };
   }, [userData?.userSettings?.defaultSessionConfig]);
+
+  const backupState = useMemo(() => {
+    const preferences = userData?.userSettings?.backupPreferences || {};
+    return {
+      directory: userData?.storage?.backupDirectory || null,
+      lastBackupAt: userData?.storage?.lastBackupAt || null,
+      attemptsSinceBackup: Number(userData?.storage?.attemptsSinceBackup || 0),
+      preferences: {
+        autoEnabled: preferences.autoEnabled !== false,
+        interval: Math.max(1, Number(preferences.interval) || 10)
+      }
+    };
+  }, [userData]);
 
   useEffect(() => {
     injectGlobalStyles();
@@ -113,7 +129,7 @@ export function App() {
     }, 3200);
   };
 
-  const updateUserData = (mutator) => {
+  const updateUserData = (mutator, afterPersist) => {
     setUserData((prev) => {
       if (!prev) return prev;
       const draft = normalizeUserData(clone(prev));
@@ -121,71 +137,112 @@ export function App() {
       if (Array.isArray(draft.flaggedQuestionIds)) {
         draft.flaggedQuestionIds = Array.from(new Set(draft.flaggedQuestionIds));
       }
-      window.gasbank.saveUserData(draft).catch((err) => {
-        console.error(err);
-        showToast('error', 'Failed to save changes locally.');
+      const prepared = clone(draft);
+      window.gasbank
+        .saveUserData(prepared)
+        .then(() => {
+          if (afterPersist) {
+            afterPersist(clone(prepared));
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          showToast('error', 'Failed to save changes locally.');
       });
       return draft;
     });
   };
 
-  const startSessionFromConfig = (config, preselectedIds = null) => {
-    const pool = allQuestions.filter((question) => {
-      if (!config.includeCustom && userData?.customQuestions?.some((custom) => custom.id === question.id)) {
-        return false;
-      }
-      if (config.onlyCustom && !userData?.customQuestions?.some((custom) => custom.id === question.id)) {
-        return false;
-      }
-      if (config.difficulty !== 'all' && question.difficulty?.toLowerCase() !== config.difficulty) {
-        return false;
-      }
-      if (config.selectedCategories.length && !config.selectedCategories.includes(question.category)) {
-        return false;
-      }
-      if (config.selectedSubcategories.length && !config.selectedSubcategories.includes(question.subcategory)) {
-        return false;
-      }
-      if (config.statusFilter === 'unanswered' && determineStatus(userData?.questionStats?.[question.id]) !== 'unanswered') {
-        return false;
-      }
-      if (config.statusFilter === 'incorrect' && determineStatus(userData?.questionStats?.[question.id]) !== 'incorrect') {
-        return false;
-      }
-      const isFlagged = flaggedSet.has(question.id);
-      if (config.flagFilter === 'flagged' && !isFlagged) {
-        return false;
-      }
-      if (config.flagFilter === 'excludeFlagged' && isFlagged) {
-        return false;
-      }
-      return true;
-    });
+  const maybeTriggerAutoBackup = (snapshot) => {
+    const preferences = snapshot.userSettings?.backupPreferences || {};
+    const autoEnabled = preferences.autoEnabled !== false;
+    if (!autoEnabled) return;
+    const directory = snapshot.storage?.backupDirectory;
+    if (!directory) return;
+    const interval = Math.max(1, Number(preferences.interval) || 10);
+    const attempts = Number(snapshot.storage?.attemptsSinceBackup) || 0;
+    if (attempts < interval) return;
+    if (autoBackupInFlight.current) return;
+    autoBackupInFlight.current = true;
+    window.gasbank
+      .createBackup({ directory })
+      .then((result) => {
+        if (result?.success) {
+          const timestamp = result.timestamp || new Date().toISOString();
+          updateUserData((draft) => {
+            draft.storage = draft.storage || {};
+            draft.storage.lastBackupAt = timestamp;
+            draft.storage.attemptsSinceBackup = 0;
+          });
+          const filename = result.filePath ? result.filePath.split(/[\\/]/).pop() : 'backup';
+          showToast('success', `Auto-backup saved (${filename}).`);
+        } else if (result?.message) {
+          showToast('error', result.message);
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        showToast('error', 'Auto-backup failed.');
+      })
+      .finally(() => {
+        autoBackupInFlight.current = false;
+      });
+  };
 
-    const questionIds = preselectedIds || pool.map((question) => question.id);
-    if (!questionIds.length) {
+  const computeMatchingQuestionIds = useCallback(
+    (config) => {
+      if (!config) return [];
+      const normalized = { ...DEFAULT_SESSION_CONFIG, ...config };
+      const ids = [];
+      allQuestions.forEach((question) => {
+        const isCustom = customQuestionIds.has(question.id);
+        if (!normalized.includeCustom && isCustom) return;
+        if (normalized.onlyCustom && !isCustom) return;
+        if (normalized.difficulty !== 'all' && question.difficulty?.toLowerCase() !== normalized.difficulty) return;
+        if (normalized.selectedCategories.length && !normalized.selectedCategories.includes(question.category)) return;
+        if (normalized.selectedSubcategories.length && !normalized.selectedSubcategories.includes(question.subcategory)) return;
+        if (normalized.statusFilter === 'unanswered' && determineStatus(userData?.questionStats?.[question.id]) !== 'unanswered') return;
+        if (normalized.statusFilter === 'incorrect' && determineStatus(userData?.questionStats?.[question.id]) !== 'incorrect') return;
+        const isFlagged = flaggedSet.has(question.id);
+        if (normalized.flagFilter === 'flagged' && !isFlagged) return;
+        if (normalized.flagFilter === 'excludeFlagged' && isFlagged) return;
+        ids.push(question.id);
+      });
+      return ids;
+    },
+    [allQuestions, customQuestionIds, flaggedSet, userData?.questionStats]
+  );
+
+  const startSessionFromConfig = (config, preselectedIds = null) => {
+    const normalizedConfig = { ...DEFAULT_SESSION_CONFIG, ...config };
+    normalizedConfig.numQuestions = Math.max(
+      1,
+      Math.min(100, Number(normalizedConfig.numQuestions) || DEFAULT_SESSION_CONFIG.numQuestions)
+    );
+    const baseIds = preselectedIds ? [...preselectedIds] : computeMatchingQuestionIds(normalizedConfig);
+    if (!baseIds.length) {
       showToast('error', 'No questions match this configuration.');
       return;
     }
 
-    const ids = [...questionIds];
-    if (config.randomize) {
+    const ids = [...baseIds];
+    if (normalizedConfig.randomize) {
       for (let i = ids.length - 1; i > 0; i -= 1) {
         const j = Math.floor(Math.random() * (i + 1));
         [ids[i], ids[j]] = [ids[j], ids[i]];
       }
     }
 
-    const trimmed = ids.slice(0, config.numQuestions);
+    const trimmed = ids.slice(0, normalizedConfig.numQuestions);
     const session = {
       id: `session-${Date.now()}`,
       createdAt: new Date().toISOString(),
       questionIds: trimmed,
       currentIndex: 0,
       userAnswers: {},
-      mode: config.mode,
+      mode: normalizedConfig.mode,
       status: 'active',
-      config
+      config: normalizedConfig
     };
 
     updateUserData((draft) => {
@@ -194,6 +251,11 @@ export function App() {
     setActiveView('session');
     showToast('success', `Session launched with ${trimmed.length} questions.`);
   };
+
+  const getMatchingCount = useCallback(
+    (config) => computeMatchingQuestionIds(config).length,
+    [computeMatchingQuestionIds]
+  );
 
   const handleSelectAnswer = (index) => {
     if (!activeSession) return;
@@ -207,17 +269,29 @@ export function App() {
     }
     const { isCorrect, correctIndex } = scoreAnswer(question, index);
     const attempt = attemptTemplate(isCorrect, index);
-    updateUserData((draft) => {
-      if (!draft.activeSession) return;
-      draft.activeSession.userAnswers[questionId] = {
-        choiceIndex: index,
-        isCorrect,
-        correctIndex
-      };
-      if (draft.activeSession.mode === 'Tutor' && (currentAnswer?.choiceIndex == null)) {
-        prepareAttemptRecord(questionId, draft, attempt);
+    let attemptDelta = 0;
+    updateUserData(
+      (draft) => {
+        if (!draft.activeSession) return;
+        draft.activeSession.userAnswers[questionId] = {
+          choiceIndex: index,
+          isCorrect,
+          correctIndex
+        };
+        if (draft.activeSession.mode === 'Tutor' && (currentAnswer?.choiceIndex == null)) {
+          prepareAttemptRecord(questionId, draft, attempt);
+          draft.storage = draft.storage || {};
+          const prevAttempts = Number(draft.storage.attemptsSinceBackup || 0);
+          draft.storage.attemptsSinceBackup = prevAttempts + 1;
+          attemptDelta += 1;
+        }
+      },
+      (updated) => {
+        if (attemptDelta > 0) {
+          maybeTriggerAutoBackup(updated);
+        }
       }
-    });
+    );
     if (activeSession.mode === 'Tutor' && currentAnswer?.choiceIndex == null) {
       showToast(isCorrect ? 'success' : 'error', isCorrect ? 'Correct!' : 'Marked for review.');
     }
@@ -268,21 +342,38 @@ export function App() {
       status: 'completed'
     };
 
-    updateUserData((draft) => {
-      if (!draft.activeSession) return;
-      draft.sessionHistory = draft.sessionHistory || [];
-      draft.sessionHistory.unshift(sessionRecord);
-      if (draft.sessionHistory.length > 50) {
-        draft.sessionHistory = draft.sessionHistory.slice(0, 50);
+    let attemptDelta = 0;
+    updateUserData(
+      (draft) => {
+        if (!draft.activeSession) return;
+        draft.sessionHistory = draft.sessionHistory || [];
+        draft.sessionHistory.unshift(sessionRecord);
+        if (draft.sessionHistory.length > 50) {
+          draft.sessionHistory = draft.sessionHistory.slice(0, 50);
+        }
+
+        updates.forEach((entry) => {
+          const attempt = attemptTemplate(entry.isCorrect, entry.choiceIndex ?? -1);
+          prepareAttemptRecord(entry.id, draft, attempt);
+          if (entry.choiceIndex != null) {
+            attemptDelta += 1;
+          }
+        });
+
+        if (attemptDelta > 0) {
+          draft.storage = draft.storage || {};
+          const prevAttempts = Number(draft.storage.attemptsSinceBackup || 0);
+          draft.storage.attemptsSinceBackup = prevAttempts + attemptDelta;
+        }
+
+        draft.activeSession = sessionSummary;
+      },
+      (updated) => {
+        if (attemptDelta > 0) {
+          maybeTriggerAutoBackup(updated);
+        }
       }
-
-      updates.forEach((entry) => {
-        const attempt = attemptTemplate(entry.isCorrect, entry.choiceIndex ?? -1);
-        prepareAttemptRecord(entry.id, draft, attempt);
-      });
-
-      draft.activeSession = sessionSummary;
-    });
+    );
     showToast('success', 'Session completed. Review your answers.');
   };
 
@@ -338,6 +429,94 @@ export function App() {
     } catch (err) {
       console.error(err);
       showToast('error', 'Failed to reset progress.');
+    }
+  };
+
+  const handleChooseBackupDirectory = async () => {
+    try {
+      const result = await window.gasbank.chooseBackupDirectory();
+      if (!result || result.canceled || !result.directory) return;
+      updateUserData((draft) => {
+        draft.storage = draft.storage || {};
+        draft.storage.backupDirectory = result.directory;
+      });
+      showToast('success', 'Backup directory updated.');
+    } catch (err) {
+      console.error(err);
+      showToast('error', 'Failed to select backup directory.');
+    }
+  };
+
+  const handleClearBackupDirectory = () => {
+    updateUserData((draft) => {
+      draft.storage = draft.storage || {};
+      draft.storage.backupDirectory = null;
+    });
+    showToast('success', 'Backup directory cleared.');
+  };
+
+  const handleUpdateBackupPreferences = (patch) => {
+    updateUserData((draft) => {
+      draft.userSettings = draft.userSettings || {};
+      const current = draft.userSettings.backupPreferences || { autoEnabled: true, interval: 10 };
+      const next = { ...current };
+      if (Object.prototype.hasOwnProperty.call(patch, 'autoEnabled')) {
+        next.autoEnabled = !!patch.autoEnabled;
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, 'interval')) {
+        const numeric = Math.max(1, Math.round(Number(patch.interval) || 1));
+        next.interval = numeric;
+      } else {
+        next.interval = Math.max(1, Math.round(Number(next.interval) || 10));
+      }
+      draft.userSettings.backupPreferences = next;
+    });
+  };
+
+  const handleCreateBackup = async () => {
+    const directory = userData?.storage?.backupDirectory;
+    if (!directory) {
+      showToast('error', 'Choose a backup directory first.');
+      return;
+    }
+    try {
+      const result = await window.gasbank.createBackup({ directory });
+      if (!result?.success) {
+        showToast('error', result?.message || 'Failed to create backup.');
+        return;
+      }
+      updateUserData((draft) => {
+        draft.storage = draft.storage || {};
+        draft.storage.lastBackupAt = result.timestamp || new Date().toISOString();
+        draft.storage.attemptsSinceBackup = 0;
+      });
+      const filename = result.filePath ? result.filePath.split(/[\\/]/).pop() : 'backup';
+      showToast('success', `Backup saved (${filename}).`);
+    } catch (err) {
+      console.error(err);
+      showToast('error', 'Failed to create backup.');
+    }
+  };
+
+  const handleImportBackup = async () => {
+    try {
+      const result = await window.gasbank.importBackup();
+      if (!result || result.canceled) return;
+      if (!result.success) {
+        showToast('error', result.message || 'Failed to import backup.');
+        return;
+      }
+      const normalized = normalizeUserData(result.userData);
+      setUserData(normalized);
+      setCustomImageDirectory(normalized.storage?.customImageDirectory || null);
+      setSessionConfig({ ...DEFAULT_SESSION_CONFIG, ...(normalized.userSettings?.defaultSessionConfig || {}) });
+      if (result.paths) {
+        setStoragePaths(result.paths);
+      }
+      showToast('success', 'Backup imported.');
+    } catch (err) {
+      console.error(err);
+      showToast('error', 'Failed to import backup.');
     }
   };
 
@@ -490,16 +669,18 @@ export function App() {
 
     const trimmedImage = question.image?.trim();
     const trimmedImageAlt = question.imageAlt?.trim();
-    const preparedAnswers = (question.answers || [])
-      .filter((answer) => typeof answer?.text === 'string' && answer.text.trim().length > 0)
-      .map((answer) => ({
-        ...answer,
-        text: answer.text.trim(),
-        explanation: answer.explanation?.trim() || '',
-        isCorrect: !!answer.isCorrect
-      }));
-    if (!preparedAnswers.length) {
-      showToast('error', 'Add at least one answer choice before saving.');
+    const preparedAnswers = (question.answers || []).map((answer) => ({
+      ...answer,
+      text: typeof answer?.text === 'string' ? answer.text.trim() : '',
+      explanation: answer.explanation?.trim() || '',
+      isCorrect: !!answer.isCorrect
+    }));
+    if (preparedAnswers.length < MIN_REQUIRED_ANSWERS) {
+      showToast('error', `Provide at least ${MIN_REQUIRED_ANSWERS} answer choices.`);
+      return;
+    }
+    if (preparedAnswers.some((answer) => answer.text.length === 0)) {
+      showToast('error', 'Fill in text for every answer choice.');
       return;
     }
     const correctAnswers = preparedAnswers.filter((answer) => answer.isCorrect);
@@ -741,6 +922,12 @@ export function App() {
             customImageDirectory={customImageDirectory}
             sessionDefaults={sessionDefaults}
             onUpdateSessionDefaults={handleUpdateSessionDefaults}
+            backupState={backupState}
+            onChooseBackupDirectory={handleChooseBackupDirectory}
+            onClearBackupDirectory={handleClearBackupDirectory}
+            onUpdateBackupPreferences={handleUpdateBackupPreferences}
+            onCreateBackup={handleCreateBackup}
+            onImportBackup={handleImportBackup}
           />
         )}
       </main>
@@ -749,6 +936,7 @@ export function App() {
         <SessionConfigurator
           filters={filters}
           config={sessionConfig}
+          getMatchingCount={getMatchingCount}
           onUpdate={(config) => setSessionConfig(config)}
           onCancel={() => setShowConfigurator(false)}
           onCreate={(config) => {

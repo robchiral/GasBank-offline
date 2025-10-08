@@ -10,10 +10,17 @@ const DEFAULT_USER_DATA_PATH = path.join(app.getPath('userData'), 'userData.json
 
 const defaultUserData = {
   userSettings: {
-    theme: 'system'
+    theme: 'system',
+    backupPreferences: {
+      autoEnabled: true,
+      interval: 10
+    }
   },
   storage: {
-    customImageDirectory: null
+    customImageDirectory: null,
+    backupDirectory: null,
+    attemptsSinceBackup: 0,
+    lastBackupAt: null
   },
   customQuestions: [],
   questionStats: {},
@@ -31,6 +38,33 @@ async function ensureConfigDirectory() {
 
 function getDefaultCustomImageDirectory(userDataPath) {
   return path.join(path.dirname(userDataPath), 'images');
+}
+
+function normalizeBackupPreferences(preferences = {}) {
+  const autoEnabled = preferences.autoEnabled !== false;
+  const interval = Math.max(1, Math.round(Number(preferences.interval) || 10));
+  return { autoEnabled, interval };
+}
+
+function normalizeAttemptsSinceBackup(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) return 0;
+  return Math.floor(numeric);
+}
+
+function formatTimestampSlug(date = new Date()) {
+  const pad = (value) => `${value}`.padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  const seconds = pad(date.getSeconds());
+  return `${year}${month}${day}-${hours}${minutes}${seconds}`;
+}
+
+function getIsoTimestamp() {
+  return new Date().toISOString();
 }
 
 async function ensureDirectoryExists(directory) {
@@ -109,29 +143,52 @@ async function ensureUserDataFile() {
     const merged = {
       ...defaultUserData,
       ...parsed,
+      userSettings: {
+        ...defaultUserData.userSettings,
+        ...(parsed.userSettings || {}),
+        backupPreferences: {
+          ...defaultUserData.userSettings.backupPreferences,
+          ...(parsed.userSettings?.backupPreferences || {})
+        }
+      },
       storage: {
         ...defaultUserData.storage,
         ...(parsed.storage || {})
       }
     };
+    merged.userSettings.backupPreferences = normalizeBackupPreferences(merged.userSettings.backupPreferences);
+    merged.storage.attemptsSinceBackup = normalizeAttemptsSinceBackup(merged.storage.attemptsSinceBackup);
+    if (!merged.storage.lastBackupAt || typeof merged.storage.lastBackupAt !== 'string') {
+      merged.storage.lastBackupAt = null;
+    }
     if (!merged.storage.customImageDirectory) {
       merged.storage.customImageDirectory = getDefaultCustomImageDirectory(userDataPath);
     }
     await ensureDirectoryExists(merged.storage.customImageDirectory);
-    await persistCustomImageDirectory(merged.storage.customImageDirectory);
-    if (!parsed.storage || parsed.storage.customImageDirectory !== merged.storage.customImageDirectory) {
-      await fsp.writeFile(userDataPath, JSON.stringify(merged, null, 2), 'utf-8');
+    if (merged.storage.backupDirectory) {
+      await ensureDirectoryExists(merged.storage.backupDirectory);
     }
+    await persistCustomImageDirectory(merged.storage.customImageDirectory);
+    await fsp.writeFile(userDataPath, JSON.stringify(merged, null, 2), 'utf-8');
     return merged;
   } catch (err) {
     console.error('Failed to parse userData.json. Recreating file.', err);
     const fallback = {
       ...defaultUserData,
+      userSettings: {
+        ...defaultUserData.userSettings
+      },
       storage: {
         ...defaultUserData.storage,
         customImageDirectory: getDefaultCustomImageDirectory(userDataPath)
       }
     };
+    fallback.userSettings.backupPreferences = normalizeBackupPreferences(
+      fallback.userSettings.backupPreferences
+    );
+    fallback.storage.attemptsSinceBackup = normalizeAttemptsSinceBackup(
+      fallback.storage.attemptsSinceBackup
+    );
     await fsp.writeFile(userDataPath, JSON.stringify(fallback, null, 2), 'utf-8');
     await ensureDirectoryExists(fallback.storage.customImageDirectory);
     await persistCustomImageDirectory(fallback.storage.customImageDirectory);
@@ -148,12 +205,36 @@ async function saveUserData(data) {
   const userDataPath = await resolveUserDataPath();
   await fsp.mkdir(path.dirname(userDataPath), { recursive: true });
   const payload = {
+    ...defaultUserData,
     ...data,
+    userSettings: {
+      ...defaultUserData.userSettings,
+      ...(data.userSettings || {}),
+      backupPreferences: {
+        ...defaultUserData.userSettings.backupPreferences,
+        ...(data.userSettings?.backupPreferences || {})
+      }
+    },
     storage: {
-      customImageDirectory: data.storage?.customImageDirectory || getDefaultCustomImageDirectory(userDataPath)
+      ...defaultUserData.storage,
+      ...(data.storage || {})
     }
   };
+  payload.userSettings.backupPreferences = normalizeBackupPreferences(
+    payload.userSettings.backupPreferences
+  );
+  payload.storage.attemptsSinceBackup = normalizeAttemptsSinceBackup(
+    payload.storage.attemptsSinceBackup
+  );
+  if (!payload.storage.lastBackupAt || typeof payload.storage.lastBackupAt !== 'string') {
+    payload.storage.lastBackupAt = null;
+  }
+  payload.storage.customImageDirectory =
+    payload.storage.customImageDirectory || getDefaultCustomImageDirectory(userDataPath);
   await ensureDirectoryExists(payload.storage.customImageDirectory);
+  if (payload.storage.backupDirectory) {
+    await ensureDirectoryExists(payload.storage.backupDirectory);
+  }
   await persistCustomImageDirectory(payload.storage.customImageDirectory);
   await fsp.writeFile(userDataPath, JSON.stringify(payload, null, 2), 'utf-8');
 }
@@ -227,13 +308,30 @@ ipcMain.handle('settings:getPaths', async () => {
   return {
     currentUserDataPath,
     defaultUserDataPath: DEFAULT_USER_DATA_PATH,
-    customImageDirectory: userData.storage?.customImageDirectory || config.customImageDirectory || null
+    customImageDirectory: userData.storage?.customImageDirectory || config.customImageDirectory || null,
+    backupDirectory: userData.storage?.backupDirectory || null,
+    backupPreferences: userData.userSettings?.backupPreferences || { autoEnabled: true, interval: 10 },
+    lastBackupAt: userData.storage?.lastBackupAt || null
   };
 });
 
 ipcMain.handle('settings:chooseUserDataDirectory', async () => {
   const result = await dialog.showOpenDialog({
     title: 'Select data directory',
+    buttonLabel: 'Choose',
+    properties: ['openDirectory', 'createDirectory']
+  });
+
+  if (result.canceled || !result.filePaths?.length) {
+    return { canceled: true };
+  }
+
+  return { canceled: false, directory: result.filePaths[0] };
+});
+
+ipcMain.handle('settings:chooseBackupDirectory', async () => {
+  const result = await dialog.showOpenDialog({
+    title: 'Select backup directory',
     buttonLabel: 'Choose',
     properties: ['openDirectory', 'createDirectory']
   });
@@ -262,23 +360,33 @@ ipcMain.handle('settings:updateUserDataPath', async (_event, options) => {
   const userData = await ensureUserDataFile();
 
   await fsp.mkdir(path.dirname(targetPath), { recursive: true });
-  const customImageDirectory = userData.storage?.customImageDirectory || getDefaultCustomImageDirectory(targetPath);
-  userData.storage = userData.storage || {};
-  userData.storage.customImageDirectory = customImageDirectory;
-  await fsp.writeFile(targetPath, JSON.stringify(userData, null, 2), 'utf-8');
+  const currentDefaultImageDirectory = getDefaultCustomImageDirectory(currentPath);
+  const nextDefaultImageDirectory = getDefaultCustomImageDirectory(targetPath);
+  const existingImageDirectory = userData.storage?.customImageDirectory;
+  const shouldUseDefaultImageDirectory =
+    !existingImageDirectory || existingImageDirectory === currentDefaultImageDirectory;
+  const customImageDirectory = shouldUseDefaultImageDirectory
+    ? nextDefaultImageDirectory
+    : existingImageDirectory;
+  userData.storage = {
+    ...defaultUserData.storage,
+    ...(userData.storage || {}),
+    customImageDirectory
+  };
+  cachedUserDataPath = targetPath;
   await persistUserDataPath(targetPath);
-  await persistCustomImageDirectory(customImageDirectory);
-  await ensureDirectoryExists(customImageDirectory);
+  await saveUserData(userData);
+  const sanitized = await ensureUserDataFile();
 
   return {
     success: true,
     userDataPath: targetPath,
-    userData,
+    userData: sanitized,
     paths: {
       currentUserDataPath: targetPath,
       defaultUserDataPath: DEFAULT_USER_DATA_PATH
     },
-    customImageDirectory,
+    customImageDirectory: sanitized.storage?.customImageDirectory,
     updated: targetPath !== currentPath
   };
 });
@@ -292,6 +400,68 @@ ipcMain.handle('settings:setCustomImageDirectory', async (_event, directory) => 
     success: true,
     customImageDirectory: resolved
   };
+});
+
+ipcMain.handle('backup:create', async (_event, options = {}) => {
+  const directory = options.directory;
+  if (!directory) {
+    return { success: false, message: 'Select a backup directory in Settings first.' };
+  }
+  try {
+    await ensureDirectoryExists(directory);
+  } catch (err) {
+    console.error('Backup directory unavailable.', err);
+    return { success: false, message: 'Failed to access the backup directory.' };
+  }
+
+  try {
+    const userData = await ensureUserDataFile();
+    const timestamp = getIsoTimestamp();
+    const slug = formatTimestampSlug(new Date(timestamp));
+    const randomSuffix = Math.random().toString(36).slice(2, 6);
+    const filename = `userData-backup-${slug}-${randomSuffix}.json`;
+    const destination = path.join(directory, filename);
+    await fsp.writeFile(destination, JSON.stringify(userData, null, 2), 'utf-8');
+    return { success: true, filePath: destination, timestamp };
+  } catch (err) {
+    console.error('Failed to create backup.', err);
+    return { success: false, message: 'Failed to create backup.' };
+  }
+});
+
+ipcMain.handle('backup:import', async () => {
+  const result = await dialog.showOpenDialog({
+    title: 'Import backup',
+    buttonLabel: 'Import',
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+    properties: ['openFile']
+  });
+
+  if (result.canceled || !result.filePaths?.length) {
+    return { canceled: true };
+  }
+
+  const filePath = result.filePaths[0];
+  try {
+    const raw = await fsp.readFile(filePath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    await saveUserData(parsed);
+    const normalized = await ensureUserDataFile();
+    const currentUserDataPath = await resolveUserDataPath();
+    return {
+      canceled: false,
+      success: true,
+      userData: normalized,
+      paths: {
+        currentUserDataPath,
+        defaultUserDataPath: DEFAULT_USER_DATA_PATH
+      },
+      storage: normalized.storage || {}
+    };
+  } catch (err) {
+    console.error('Failed to import backup.', err);
+    return { canceled: false, success: false, message: 'The selected file is not a valid backup.' };
+  }
 });
 
 ipcMain.handle('dialog:importQuestions', async () => {

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { DEFAULT_SESSION_CONFIG } from '../constants.js';
 
-export function SessionConfigurator({ filters, config, onUpdate, onCancel, onCreate }) {
+export function SessionConfigurator({ filters, config, onUpdate, onCancel, onCreate, getMatchingCount }) {
   const [localConfig, setLocalConfig] = useState({ ...DEFAULT_SESSION_CONFIG, ...config });
 
   useEffect(() => {
@@ -27,6 +27,13 @@ export function SessionConfigurator({ filters, config, onUpdate, onCancel, onCre
       return { ...prev, selectedSubcategories: next };
     });
   };
+
+  const matchingCount = React.useMemo(() => {
+    if (!getMatchingCount) return 0;
+    return getMatchingCount(localConfig);
+  }, [getMatchingCount, localConfig]);
+  const requestedCount = Math.max(1, Number(localConfig.numQuestions) || DEFAULT_SESSION_CONFIG.numQuestions);
+  const plannedCount = Math.min(requestedCount, matchingCount);
 
   return (
     <div className="modal-backdrop">
@@ -160,12 +167,22 @@ export function SessionConfigurator({ filters, config, onUpdate, onCancel, onCre
           {filters.subcategories.length === 0 && <span style={{ color: 'var(--text-muted)' }}>No subcategories available.</span>}
         </div>
 
+        <div style={{ color: 'var(--text-muted)', marginBottom: 20 }}>
+          Matching questions: <span style={{ fontWeight: 600 }}>{matchingCount}</span>
+          {matchingCount === 0
+            ? '. Adjust the filters to find eligible questions.'
+            : plannedCount < requestedCount
+              ? ` (will launch with ${plannedCount} to match the available pool).`
+              : ` (will launch with ${plannedCount}).`}
+        </div>
+
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
           <button className="button secondary" onClick={onCancel}>
             Cancel
           </button>
           <button
             className="button"
+            disabled={matchingCount === 0}
             onClick={() => {
               onUpdate(localConfig);
               onCreate(localConfig);

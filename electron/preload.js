@@ -9,5 +9,8 @@ contextBridge.exposeInMainWorld('gasbank', {
   getStoragePaths: () => ipcRenderer.invoke('settings:getPaths'),
   chooseUserDataDirectory: () => ipcRenderer.invoke('settings:chooseUserDataDirectory'),
   updateUserDataPath: (options) => ipcRenderer.invoke('settings:updateUserDataPath', options),
-  setCustomImageDirectory: (directory) => ipcRenderer.invoke('settings:setCustomImageDirectory', directory)
+  setCustomImageDirectory: (directory) => ipcRenderer.invoke('settings:setCustomImageDirectory', directory),
+  chooseBackupDirectory: () => ipcRenderer.invoke('settings:chooseBackupDirectory'),
+  createBackup: (options) => ipcRenderer.invoke('backup:create', options),
+  importBackup: () => ipcRenderer.invoke('backup:import')
 });

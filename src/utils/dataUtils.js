@@ -10,6 +10,11 @@ export function normalizeUserData(data) {
   if (!userSettings.theme) {
     userSettings.theme = 'system';
   }
+  const rawBackupPreferences = userSettings.backupPreferences || {};
+  const backupPreferences = {
+    autoEnabled: rawBackupPreferences.autoEnabled !== false,
+    interval: Math.max(1, Math.round(Number(rawBackupPreferences.interval) || 10))
+  };
   const defaultSessionConfig = {
     ...DEFAULT_SESSION_CONFIG,
     ...(userSettings.defaultSessionConfig || {})
@@ -24,10 +29,27 @@ export function normalizeUserData(data) {
     defaultSessionConfig.flagFilter = 'any';
   }
   userSettings.defaultSessionConfig = defaultSessionConfig;
+  userSettings.backupPreferences = backupPreferences;
   normalized.userSettings = userSettings;
-  if (!normalized.storage) normalized.storage = { customImageDirectory: null };
+  if (!normalized.storage) {
+    normalized.storage = {
+      customImageDirectory: null,
+      backupDirectory: null,
+      attemptsSinceBackup: 0,
+      lastBackupAt: null
+    };
+  }
   if (normalized.storage && typeof normalized.storage.customImageDirectory === 'undefined') {
     normalized.storage.customImageDirectory = null;
+  }
+  if (typeof normalized.storage.backupDirectory === 'undefined') {
+    normalized.storage.backupDirectory = null;
+  }
+  const attemptsValue = Number(normalized.storage.attemptsSinceBackup);
+  normalized.storage.attemptsSinceBackup =
+    Number.isFinite(attemptsValue) && attemptsValue >= 0 ? Math.floor(attemptsValue) : 0;
+  if (!normalized.storage.lastBackupAt || typeof normalized.storage.lastBackupAt !== 'string') {
+    normalized.storage.lastBackupAt = null;
   }
   if (!Array.isArray(normalized.customQuestions)) normalized.customQuestions = [];
   if (!normalized.questionStats) normalized.questionStats = {};

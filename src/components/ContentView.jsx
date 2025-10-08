@@ -2,8 +2,11 @@ import React from 'react';
 import { statusLabels } from '../constants.js';
 import { determineStatus } from '../utils/dataUtils.js';
 
+const MIN_ANSWERS = 2;
+const MAX_ANSWERS = 6;
+
 const buildDefaultAnswers = () =>
-  Array.from({ length: 5 }, (_, idx) => ({
+  Array.from({ length: MIN_ANSWERS }, (_, idx) => ({
     text: '',
     isCorrect: idx === 0,
     explanation: ''
@@ -115,6 +118,36 @@ export function ContentView({
     });
   };
 
+  const addAnswerChoice = () => {
+    setNewQuestion((prev) => {
+      if (prev.answers.length >= MAX_ANSWERS) return prev;
+      const nextAnswers = [
+        ...prev.answers,
+        {
+          text: '',
+          isCorrect: false,
+          explanation: ''
+        }
+      ];
+      return { ...prev, answers: nextAnswers };
+    });
+  };
+
+  const removeAnswerChoice = (index) => {
+    setNewQuestion((prev) => {
+      if (prev.answers.length <= MIN_ANSWERS) return prev;
+      const nextAnswers = prev.answers.filter((_, idx) => idx !== index);
+      let adjustedAnswers = nextAnswers;
+      if (!nextAnswers.some((answer) => answer.isCorrect) && nextAnswers.length) {
+        adjustedAnswers = nextAnswers.map((answer, idx) => ({
+          ...answer,
+          isCorrect: idx === 0
+        }));
+      }
+      return { ...prev, answers: adjustedAnswers };
+    });
+  };
+
   const submitQuestion = () => {
     const requiredFields = ['category', 'subcategory', 'questionText'];
     const missing = requiredFields.filter((field) => !newQuestion[field].trim());
@@ -127,21 +160,20 @@ export function ContentView({
       explanation: answer.explanation.trim(),
       isCorrect: answer.isCorrect
     }));
-    const filledAnswers = trimmedAnswers.filter((answer) => answer.text.length > 0);
-    if (filledAnswers.length === 0) {
-      alert('Add at least one answer choice.');
+    if (trimmedAnswers.length < MIN_ANSWERS) {
+      alert(`Add at least ${MIN_ANSWERS} answer choices.`);
       return;
     }
-    const correctAnswers = filledAnswers.filter((answer) => answer.isCorrect);
+    if (trimmedAnswers.some((answer) => answer.text.length === 0)) {
+      alert('Fill in text for every answer choice.');
+      return;
+    }
+    const correctAnswers = trimmedAnswers.filter((answer) => answer.isCorrect);
     if (correctAnswers.length !== 1) {
       alert('Select exactly one correct answer.');
       return;
     }
-    if (!correctAnswers[0].text) {
-      alert('The correct answer must include answer text.');
-      return;
-    }
-    onCreateQuestion({ ...newQuestion, answers: filledAnswers });
+    onCreateQuestion({ ...newQuestion, answers: trimmedAnswers });
     setNewQuestion((prev) => ({
       ...prev,
       id: '',
@@ -449,14 +481,39 @@ export function ContentView({
                   />
                   Correct
                 </label>
+                {newQuestion.answers.length > MIN_ANSWERS && (
+                  <button
+                    className="button danger"
+                    type="button"
+                    onClick={() => removeAnswerChoice(idx)}
+                    style={{ padding: '6px 10px' }}
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
               <textarea
+                rows={3}
                 value={answer.explanation}
                 onChange={(event) => handleAnswerChange(idx, { explanation: event.target.value })}
                 placeholder="Explanation for this answer choice"
               />
             </div>
           ))}
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+            <button
+              className="button secondary"
+              type="button"
+              onClick={addAnswerChoice}
+              disabled={newQuestion.answers.length >= MAX_ANSWERS}
+            >
+              Add Answer Choice
+            </button>
+            <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+              Requires at least {MIN_ANSWERS} answers. Explanations are optional.
+              {newQuestion.answers.length >= MAX_ANSWERS && ` Maximum of ${MAX_ANSWERS} answers.`}
+            </span>
+          </div>
         </div>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 22 }}>

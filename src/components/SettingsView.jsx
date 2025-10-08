@@ -1,7 +1,19 @@
 import React from 'react';
 import { DEFAULT_SESSION_CONFIG } from '../constants.js';
+import { formatDate } from '../utils/dataUtils.js';
 
-export function SettingsView({ paths, customImageDirectory, sessionDefaults, onUpdateSessionDefaults }) {
+export function SettingsView({
+  paths,
+  customImageDirectory,
+  sessionDefaults,
+  onUpdateSessionDefaults,
+  backupState,
+  onChooseBackupDirectory,
+  onClearBackupDirectory,
+  onUpdateBackupPreferences,
+  onCreateBackup,
+  onImportBackup
+}) {
   const defaultImageDirectory = React.useMemo(() => {
     if (!paths.currentUserDataPath) return null;
     const sanitized = paths.currentUserDataPath.replace(/\\/g, '/');
@@ -17,10 +29,23 @@ export function SettingsView({ paths, customImageDirectory, sessionDefaults, onU
   );
 
   const [localDefaults, setLocalDefaults] = React.useState(mergedDefaults);
+  const backupAutoEnabled = backupState?.preferences?.autoEnabled ?? true;
+  const backupInterval = Math.max(1, Number(backupState?.preferences?.interval) || 10);
+  const [localBackupPrefs, setLocalBackupPrefs] = React.useState({
+    autoEnabled: backupAutoEnabled,
+    interval: backupInterval
+  });
 
   React.useEffect(() => {
     setLocalDefaults(mergedDefaults);
   }, [mergedDefaults]);
+
+  React.useEffect(() => {
+    setLocalBackupPrefs({
+      autoEnabled: backupAutoEnabled,
+      interval: backupInterval
+    });
+  }, [backupAutoEnabled, backupInterval]);
 
   const isDirty = React.useMemo(() => {
     return (
@@ -34,6 +59,17 @@ export function SettingsView({ paths, customImageDirectory, sessionDefaults, onU
     );
   }, [localDefaults, mergedDefaults]);
 
+  const backupDirty = React.useMemo(() => {
+    return (
+      localBackupPrefs.autoEnabled !== backupAutoEnabled ||
+      localBackupPrefs.interval !== backupInterval
+    );
+  }, [localBackupPrefs, backupAutoEnabled, backupInterval]);
+  const lastBackupDisplay = backupState?.lastBackupAt ? formatDate(backupState.lastBackupAt) : 'Never';
+  const attemptsSinceBackup = Number(backupState?.attemptsSinceBackup || 0);
+  const backupDirectory = backupState?.directory || 'Not set';
+  const hasBackupDirectory = !!backupState?.directory;
+
   const handleSaveDefaults = () => {
     if (!onUpdateSessionDefaults) return;
     const sanitized = {
@@ -46,6 +82,11 @@ export function SettingsView({ paths, customImageDirectory, sessionDefaults, onU
     sanitized.numQuestions = Math.max(1, Math.min(100, Number(sanitized.numQuestions) || DEFAULT_SESSION_CONFIG.numQuestions));
     onUpdateSessionDefaults(sanitized);
     setLocalDefaults(sanitized);
+  };
+
+  const handleSaveBackupPrefs = () => {
+    if (!onUpdateBackupPreferences) return;
+    onUpdateBackupPreferences(localBackupPrefs);
   };
 
   return (
@@ -67,6 +108,102 @@ export function SettingsView({ paths, customImageDirectory, sessionDefaults, onU
             <div className="info-label">Custom images</div>
             <code className="info-value">{resolvedImageDirectory || 'Unavailable'}</code>
           </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Backups</h2>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 18 }}>
+          Manage local backups of <code>userData.json</code>. Auto-backups trigger after the selected number of tracked question attempts.
+        </p>
+        <div className="info-block">
+          <div className="info-row">
+            <div className="info-label">Backup directory</div>
+            <code className="info-value">{backupDirectory}</code>
+          </div>
+          <div className="info-row">
+            <div className="info-label">Last backup</div>
+            <div className="info-value">{lastBackupDisplay}</div>
+          </div>
+          <div className="info-row">
+            <div className="info-label">Attempts since backup</div>
+            <div className="info-value">{attemptsSinceBackup}</div>
+          </div>
+        </div>
+        <div className="form-row" style={{ marginBottom: 16 }}>
+          <button
+            className="button"
+            type="button"
+            onClick={() => onChooseBackupDirectory && onChooseBackupDirectory()}
+          >
+            Choose Backup Directory
+          </button>
+          <button
+            className="button secondary"
+            type="button"
+            onClick={() => onClearBackupDirectory && onClearBackupDirectory()}
+            disabled={!hasBackupDirectory}
+          >
+            Clear Directory
+          </button>
+        </div>
+        <div className="form-row">
+          <label>
+            Auto-backup interval (attempts)
+            <input
+              type="number"
+              min={1}
+              value={localBackupPrefs.interval}
+              onChange={(event) =>
+                setLocalBackupPrefs((prev) => ({
+                  ...prev,
+                  interval: Math.max(1, Math.round(Number(event.target.value) || 1))
+                }))
+              }
+            />
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+            <input
+              type="checkbox"
+              checked={localBackupPrefs.autoEnabled}
+              onChange={(event) =>
+                setLocalBackupPrefs((prev) => ({
+                  ...prev,
+                  autoEnabled: event.target.checked
+                }))
+              }
+              style={{ width: 18, height: 18 }}
+            />
+            Enable auto-backup
+          </label>
+        </div>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: -6 }}>
+          Auto-backups run only when a backup directory is set.
+        </p>
+        <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+          <button
+            className="button secondary"
+            type="button"
+            onClick={handleSaveBackupPrefs}
+            disabled={!backupDirty}
+          >
+            Save Backup Preferences
+          </button>
+          <button
+            className="button"
+            type="button"
+            onClick={() => onCreateBackup && onCreateBackup()}
+            disabled={!hasBackupDirectory}
+          >
+            Create Backup Now
+          </button>
+          <button
+            className="button secondary"
+            type="button"
+            onClick={() => onImportBackup && onImportBackup()}
+          >
+            Import Backup…
+          </button>
         </div>
       </div>
 
