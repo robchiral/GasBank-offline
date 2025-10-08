@@ -7,6 +7,10 @@ export function clone(data) {
 export function normalizeUserData(data) {
   const normalized = data ? { ...data } : {};
   if (!normalized.userSettings) normalized.userSettings = { theme: 'system' };
+  if (!normalized.storage) normalized.storage = { customImageDirectory: null };
+  if (normalized.storage && typeof normalized.storage.customImageDirectory === 'undefined') {
+    normalized.storage.customImageDirectory = null;
+  }
   if (!Array.isArray(normalized.customQuestions)) normalized.customQuestions = [];
   if (!normalized.questionStats) normalized.questionStats = {};
   if (!Array.isArray(normalized.sessionHistory)) normalized.sessionHistory = [];

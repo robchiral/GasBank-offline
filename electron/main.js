@@ -12,6 +12,9 @@ const defaultUserData = {
   userSettings: {
     theme: 'system'
   },
+  storage: {
+    customImageDirectory: null
+  },
   customQuestions: [],
   questionStats: {},
   activeSession: null,
@@ -26,12 +29,28 @@ async function ensureConfigDirectory() {
   await fsp.mkdir(path.dirname(CONFIG_FILE), { recursive: true });
 }
 
+function getDefaultCustomImageDirectory(userDataPath) {
+  return path.join(path.dirname(userDataPath), 'images');
+}
+
+async function ensureDirectoryExists(directory) {
+  if (!directory) return;
+  try {
+    await fsp.mkdir(directory, { recursive: true });
+  } catch (err) {
+    console.error('Failed to ensure directory exists:', directory, err);
+  }
+}
+
 async function resolveUserDataPath() {
   if (cachedUserDataPath) return cachedUserDataPath;
 
   try {
     const raw = await fsp.readFile(CONFIG_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
+    if (parsed.customImageDirectory) {
+      defaultUserData.storage.customImageDirectory = parsed.customImageDirectory;
+    }
     if (parsed.userDataPath) {
       cachedUserDataPath = parsed.userDataPath;
       return cachedUserDataPath;
@@ -47,7 +66,32 @@ async function resolveUserDataPath() {
 async function persistUserDataPath(targetPath) {
   cachedUserDataPath = targetPath;
   await ensureConfigDirectory();
-  await fsp.writeFile(CONFIG_FILE, JSON.stringify({ userDataPath: targetPath }, null, 2), 'utf-8');
+  const existing = await loadConfig();
+  const next = { ...existing, userDataPath: targetPath };
+  await fsp.writeFile(CONFIG_FILE, JSON.stringify(next, null, 2), 'utf-8');
+}
+
+async function persistCustomImageDirectory(directory) {
+  await ensureConfigDirectory();
+  const existing = await loadConfig();
+  const target = directory || null;
+  if (target) {
+    await ensureDirectoryExists(target);
+  }
+  if (existing.customImageDirectory === target) {
+    return;
+  }
+  const next = { ...existing, customImageDirectory: target };
+  await fsp.writeFile(CONFIG_FILE, JSON.stringify(next, null, 2), 'utf-8');
+}
+
+async function loadConfig() {
+  try {
+    const raw = await fsp.readFile(CONFIG_FILE, 'utf-8');
+    return JSON.parse(raw);
+  } catch (err) {
+    return {};
+  }
 }
 
 async function ensureUserDataFile() {
@@ -62,11 +106,36 @@ async function ensureUserDataFile() {
   const raw = await fsp.readFile(userDataPath, 'utf-8');
   try {
     const parsed = JSON.parse(raw);
-    return { ...defaultUserData, ...parsed };
+    const merged = {
+      ...defaultUserData,
+      ...parsed,
+      storage: {
+        ...defaultUserData.storage,
+        ...(parsed.storage || {})
+      }
+    };
+    if (!merged.storage.customImageDirectory) {
+      merged.storage.customImageDirectory = getDefaultCustomImageDirectory(userDataPath);
+    }
+    await ensureDirectoryExists(merged.storage.customImageDirectory);
+    await persistCustomImageDirectory(merged.storage.customImageDirectory);
+    if (!parsed.storage || parsed.storage.customImageDirectory !== merged.storage.customImageDirectory) {
+      await fsp.writeFile(userDataPath, JSON.stringify(merged, null, 2), 'utf-8');
+    }
+    return merged;
   } catch (err) {
     console.error('Failed to parse userData.json. Recreating file.', err);
-    await fsp.writeFile(userDataPath, JSON.stringify(defaultUserData, null, 2), 'utf-8');
-    return { ...defaultUserData };
+    const fallback = {
+      ...defaultUserData,
+      storage: {
+        ...defaultUserData.storage,
+        customImageDirectory: getDefaultCustomImageDirectory(userDataPath)
+      }
+    };
+    await fsp.writeFile(userDataPath, JSON.stringify(fallback, null, 2), 'utf-8');
+    await ensureDirectoryExists(fallback.storage.customImageDirectory);
+    await persistCustomImageDirectory(fallback.storage.customImageDirectory);
+    return fallback;
   }
 }
 
@@ -78,7 +147,15 @@ async function loadQuestions() {
 async function saveUserData(data) {
   const userDataPath = await resolveUserDataPath();
   await fsp.mkdir(path.dirname(userDataPath), { recursive: true });
-  await fsp.writeFile(userDataPath, JSON.stringify(data, null, 2), 'utf-8');
+  const payload = {
+    ...data,
+    storage: {
+      customImageDirectory: data.storage?.customImageDirectory || getDefaultCustomImageDirectory(userDataPath)
+    }
+  };
+  await ensureDirectoryExists(payload.storage.customImageDirectory);
+  await persistCustomImageDirectory(payload.storage.customImageDirectory);
+  await fsp.writeFile(userDataPath, JSON.stringify(payload, null, 2), 'utf-8');
 }
 
 function createWindow() {
@@ -121,7 +198,8 @@ ipcMain.handle('data:load', async () => {
     paths: {
       currentUserDataPath: userDataPath,
       defaultUserDataPath: DEFAULT_USER_DATA_PATH
-    }
+    },
+    storage: userData.storage || { customImageDirectory: null }
   };
 });
 
@@ -131,15 +209,25 @@ ipcMain.handle('data:saveUserData', async (_event, data) => {
 });
 
 ipcMain.handle('data:resetAll', async () => {
-  await saveUserData(defaultUserData);
-  return { success: true, userData: { ...defaultUserData } };
+  const userDataPath = await resolveUserDataPath();
+  const resetData = {
+    ...defaultUserData,
+    storage: {
+      customImageDirectory: getDefaultCustomImageDirectory(userDataPath)
+    }
+  };
+  await saveUserData(resetData);
+  return { success: true, userData: { ...resetData } };
 });
 
 ipcMain.handle('settings:getPaths', async () => {
   const currentUserDataPath = await resolveUserDataPath();
+  const userData = await ensureUserDataFile();
+  const config = await loadConfig();
   return {
     currentUserDataPath,
-    defaultUserDataPath: DEFAULT_USER_DATA_PATH
+    defaultUserDataPath: DEFAULT_USER_DATA_PATH,
+    customImageDirectory: userData.storage?.customImageDirectory || config.customImageDirectory || null
   };
 });
 
@@ -174,8 +262,13 @@ ipcMain.handle('settings:updateUserDataPath', async (_event, options) => {
   const userData = await ensureUserDataFile();
 
   await fsp.mkdir(path.dirname(targetPath), { recursive: true });
+  const customImageDirectory = userData.storage?.customImageDirectory || getDefaultCustomImageDirectory(targetPath);
+  userData.storage = userData.storage || {};
+  userData.storage.customImageDirectory = customImageDirectory;
   await fsp.writeFile(targetPath, JSON.stringify(userData, null, 2), 'utf-8');
   await persistUserDataPath(targetPath);
+  await persistCustomImageDirectory(customImageDirectory);
+  await ensureDirectoryExists(customImageDirectory);
 
   return {
     success: true,
@@ -185,7 +278,19 @@ ipcMain.handle('settings:updateUserDataPath', async (_event, options) => {
       currentUserDataPath: targetPath,
       defaultUserDataPath: DEFAULT_USER_DATA_PATH
     },
+    customImageDirectory,
     updated: targetPath !== currentPath
+  };
+});
+
+ipcMain.handle('settings:setCustomImageDirectory', async (_event, directory) => {
+  const userDataPath = await resolveUserDataPath();
+  const resolved = directory || getDefaultCustomImageDirectory(userDataPath);
+  await persistCustomImageDirectory(resolved);
+  await ensureDirectoryExists(resolved);
+  return {
+    success: true,
+    customImageDirectory: resolved
   };
 });
 

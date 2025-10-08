@@ -8,13 +8,12 @@ export function ContentView({
   filters,
   customQuestionIds,
   flaggedSet,
+  customImageDirectory,
   onCreateQuestion,
   onImport,
   onExport,
-  onResetQuestion,
   onBulkReset,
-  onDeleteCustomQuestions,
-  onToggleFlag
+  onDeleteCustomQuestions
 }) {
   const [search, setSearch] = React.useState('');
   const [categoryFilter, setCategoryFilter] = React.useState('all');
@@ -198,6 +197,14 @@ export function ContentView({
 
       <div className="card">
         <h2>Question Browser</h2>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 12 }}>
+          Custom image directory:{' '}
+          {customImageDirectory ? (
+            <code>{customImageDirectory}</code>
+          ) : (
+            'Set this under Settings to enable custom images for imported/created questions.'
+          )}
+        </p>
         <div className="form-row">
           <label>
             Search
@@ -236,6 +243,12 @@ export function ContentView({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
           <span style={{ color: 'var(--text-muted)' }}>{selectedCount} selected</span>
+          <button className="button secondary" onClick={() => {
+            const allIds = filteredQuestions.map((question) => question.id);
+            setSelectedIds(new Set(allIds));
+          }} disabled={filteredQuestions.length === 0}>
+            Select All
+          </button>
           <button className="button secondary" onClick={handleResetSelected} disabled={!hasSelection}>
             Reset Selected
           </button>
@@ -307,15 +320,6 @@ export function ContentView({
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <button className="button secondary" onClick={() => onResetQuestion(question.id)}>
-                    Reset History
-                  </button>
-                  <button
-                    className={`button flag-button ${isFlagged ? 'active' : ''}`}
-                    onClick={() => onToggleFlag(question.id)}
-                  >
-                    {isFlagged ? 'Remove Flag' : 'Flag'}
-                  </button>
                   {isCustom && (
                     <button className="button danger" onClick={() => handleDeleteSingle(question.id)}>
                       Delete
@@ -376,7 +380,11 @@ export function ContentView({
               onChange={(event) => setNewQuestion((prev) => ({ ...prev, image: event.target.value }))}
               placeholder="e.g., arterial_line_ultrasound.png"
             />
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Place image under <code>data/images</code>.</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              {customImageDirectory
+                ? `Place image under ${customImageDirectory}`
+                : 'Set a custom image directory under Settings.'}
+            </span>
           </label>
           <label>
             Image alt text

@@ -5,8 +5,8 @@
   "main": "electron/main.js",
   "scripts": {
     "build": "npm run build:renderer",
-    "build:renderer": "esbuild src/main.jsx --bundle --outfile=dist/renderer.js --loader:.jsx=jsx --define:process.env.NODE_ENV=\\\"production\\\" --platform=browser --format=iife",
-    "watch": "esbuild src/main.jsx --bundle --outfile=dist/renderer.js --loader:.jsx=jsx --define:process.env.NODE_ENV=\\\"development\\\" --platform=browser --format=iife --watch",
+    "build:renderer": "esbuild src/main.jsx --bundle --outdir=dist --entry-names=[name] --loader:.jsx=jsx --define:process.env.NODE_ENV=\\\"production\\\" --platform=browser --format=esm --splitting",
+    "watch": "esbuild src/main.jsx --bundle --outdir=dist --entry-names=[name] --loader:.jsx=jsx --define:process.env.NODE_ENV=\\\"development\\\" --platform=browser --format=esm --splitting --watch",
     "start": "npm run build && electron .",
     "dev": "concurrently \\\"npm:watch\\\" \\\"electron .\\\""
   },

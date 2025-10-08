@@ -1,6 +1,27 @@
 import React from 'react';
 import { scoreAnswer, derivePaletteClass } from '../utils/dataUtils.js';
 
+function buildCustomImageSrc(directory, filename) {
+  if (!directory || !filename) return null;
+  if (/^(file|https?):\/\//i.test(filename)) {
+    return filename;
+  }
+  const sanitizedDir = directory.replace(/\\/g, '/');
+  const hasProtocol = /^file:\/\//i.test(sanitizedDir);
+  const needsLeadingSlash = !sanitizedDir.startsWith('/') && !hasProtocol;
+  let base = hasProtocol ? sanitizedDir : `file://${needsLeadingSlash ? '/' : ''}${sanitizedDir}`;
+  if (!base.endsWith('/')) {
+    base += '/';
+  }
+  const safeFilename = filename
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .map(encodeURIComponent)
+    .join('/');
+  return encodeURI(base) + safeFilename;
+}
+
 export function SessionView({
   session,
   question,
@@ -12,7 +33,9 @@ export function SessionView({
   onExit,
   onToggleFlag,
   isFlagged,
-  flaggedSet
+  flaggedSet,
+  customQuestionIds,
+  customImageDirectory
 }) {
   if (!session || !question) {
     return <div className="empty-state">No active session. Start a new study session from the dashboard.</div>;
@@ -23,7 +46,12 @@ export function SessionView({
   const showFeedback = session.mode === 'Tutor'
     ? currentAnswer?.choiceIndex != null
     : session.status === 'completed';
-  const imageSrc = question.image ? `../data/images/${question.image}` : null;
+  const isCustomQuestion = customQuestionIds?.has ? customQuestionIds.has(question.id) : false;
+  const imageSrc = question.image
+    ? isCustomQuestion
+      ? buildCustomImageSrc(customImageDirectory, question.image)
+      : `../data/images/${question.image}`
+    : null;
 
   return (
     <div className="session-container">

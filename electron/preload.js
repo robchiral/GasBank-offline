@@ -8,5 +8,6 @@ contextBridge.exposeInMainWorld('gasbank', {
   exportCustomQuestions: (payload) => ipcRenderer.invoke('dialog:exportQuestions', payload),
   getStoragePaths: () => ipcRenderer.invoke('settings:getPaths'),
   chooseUserDataDirectory: () => ipcRenderer.invoke('settings:chooseUserDataDirectory'),
-  updateUserDataPath: (options) => ipcRenderer.invoke('settings:updateUserDataPath', options)
+  updateUserDataPath: (options) => ipcRenderer.invoke('settings:updateUserDataPath', options),
+  setCustomImageDirectory: (directory) => ipcRenderer.invoke('settings:setCustomImageDirectory', directory)
 });

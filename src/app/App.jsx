@@ -34,7 +34,7 @@ export function App() {
     currentUserDataPath: '',
     defaultUserDataPath: ''
   });
-  const [selectedHistorySessionId, setSelectedHistorySessionId] = useState(null);
+  const [customImageDirectory, setCustomImageDirectory] = useState(null);
 
   useEffect(() => {
     injectGlobalStyles();
@@ -47,10 +47,12 @@ export function App() {
         const payload = await window.gasbank.loadData();
         if (cancelled) return;
         setBaseQuestions(payload.questions || []);
-        setUserData(normalizeUserData(payload.userData || {}));
+        const normalizedUser = normalizeUserData(payload.userData || {});
+        setUserData(normalizedUser);
         if (payload.paths) {
           setStoragePaths(payload.paths);
         }
+        setCustomImageDirectory(normalizedUser.storage?.customImageDirectory || null);
         setLoading(false);
       } catch (err) {
         setError(err);
@@ -94,14 +96,6 @@ export function App() {
   const flaggedSet = useMemo(() => new Set(userData?.flaggedQuestionIds || []), [userData]);
   const flaggedCount = flaggedSet.size;
 
-  useEffect(() => {
-    if (!selectedHistorySessionId) return;
-    const exists = userData?.sessionHistory?.some((session) => session.id === selectedHistorySessionId);
-    if (!exists) {
-      setSelectedHistorySessionId(null);
-    }
-  }, [selectedHistorySessionId, userData]);
-
   const activeSession = userData?.activeSession ?? null;
 
   const showToast = (type, message) => {
@@ -115,12 +109,24 @@ export function App() {
     try {
       const nextPaths = await window.gasbank.getStoragePaths();
       if (nextPaths) {
-        setStoragePaths(nextPaths);
+        setStoragePaths({
+          currentUserDataPath: nextPaths.currentUserDataPath,
+          defaultUserDataPath: nextPaths.defaultUserDataPath
+        });
+        setCustomImageDirectory(nextPaths.customImageDirectory || null);
       }
     } catch (err) {
       console.error(err);
       showToast('error', 'Failed to read storage paths.');
     }
+  };
+
+  const deriveDefaultCustomImageDirectory = (userDataPath) => {
+    if (!userDataPath) return null;
+    const sanitized = userDataPath.replace(/\\/g, '/');
+    const segments = sanitized.split('/');
+    segments.pop();
+    return `${segments.join('/')}/images`;
   };
 
   const updateUserData = (mutator) => {
@@ -139,6 +145,27 @@ export function App() {
     });
   };
 
+  const handleSelectCustomImageDirectory = (directory) => {
+    const resolved = directory ?? deriveDefaultCustomImageDirectory(storagePaths.currentUserDataPath);
+    setCustomImageDirectory(resolved || null);
+  };
+
+  const handlePersistCustomImageDirectory = async (directory) => {
+    const resolved = directory ?? deriveDefaultCustomImageDirectory(storagePaths.currentUserDataPath);
+    if (!resolved) {
+      showToast('error', 'Unable to determine image directory.');
+      return;
+    }
+    await window.gasbank.setCustomImageDirectory(resolved);
+    setCustomImageDirectory(resolved);
+    updateUserData((draft) => {
+      draft.storage = draft.storage || {};
+      draft.storage.customImageDirectory = resolved;
+    });
+    await refreshStoragePaths();
+    showToast('success', 'Custom image directory saved.');
+  };
+
   const handleChangeStorageLocation = async () => {
     const selection = await window.gasbank.chooseUserDataDirectory();
     if (!selection || selection.canceled) return;
@@ -149,7 +176,12 @@ export function App() {
         return;
       }
       if (result.userData) {
-        setUserData(normalizeUserData(result.userData));
+        const normalized = normalizeUserData(result.userData);
+        setUserData(normalized);
+        setCustomImageDirectory(normalized.storage?.customImageDirectory || deriveDefaultCustomImageDirectory(result.userDataPath));
+      }
+      if (result.customImageDirectory) {
+        setCustomImageDirectory(result.customImageDirectory);
       }
       if (result.paths) {
         setStoragePaths(result.paths);
@@ -175,7 +207,12 @@ export function App() {
         return;
       }
       if (result.userData) {
-        setUserData(normalizeUserData(result.userData));
+        const normalized = normalizeUserData(result.userData);
+        setUserData(normalized);
+        setCustomImageDirectory(normalized.storage?.customImageDirectory || deriveDefaultCustomImageDirectory(result.userDataPath));
+      }
+      if (result.customImageDirectory) {
+        setCustomImageDirectory(result.customImageDirectory);
       }
       if (result.paths) {
         setStoragePaths(result.paths);
@@ -390,7 +427,9 @@ export function App() {
     if (!confirmReset) return;
     try {
       const result = await window.gasbank.resetAllProgress();
-      setUserData(normalizeUserData(result.userData));
+      const normalized = normalizeUserData(result.userData);
+      setUserData(normalized);
+      setCustomImageDirectory(normalized.storage?.customImageDirectory || null);
       showToast('success', 'Progress reset.');
     } catch (err) {
       console.error(err);
@@ -398,34 +437,38 @@ export function App() {
     }
   };
 
-  const handleResetQuestion = (id) => {
-    updateUserData((draft) => {
-      if (draft.questionStats[id]) {
-        delete draft.questionStats[id];
-      }
-    });
-    showToast('success', `History cleared for ${id}.`);
-  };
-
   const handleBulkResetQuestions = (ids) => {
     if (!ids || !ids.length) return;
     const unique = Array.from(new Set(ids));
+    let cleared = 0;
     updateUserData((draft) => {
       unique.forEach((id) => {
         if (draft.questionStats[id]) {
           delete draft.questionStats[id];
+          cleared += 1;
         }
       });
     });
-    showToast('success', unique.length === 1 ? 'History cleared for 1 question.' : `History cleared for ${unique.length} questions.`);
+    if (cleared === 0) {
+      showToast('success', 'No stored history for the selected questions.');
+    } else {
+      showToast('success', cleared === 1 ? 'History cleared for 1 question.' : `History cleared for ${cleared} questions.`);
+    }
   };
 
   const handleDeleteCustomQuestions = (ids) => {
     if (!ids || !ids.length) return;
     const unique = Array.from(new Set(ids));
     const toDelete = new Set(unique);
+    let deleted = 0;
     updateUserData((draft) => {
-      draft.customQuestions = (draft.customQuestions || []).filter((question) => !toDelete.has(question.id));
+      draft.customQuestions = (draft.customQuestions || []).filter((question) => {
+        if (toDelete.has(question.id)) {
+          deleted += 1;
+          return false;
+        }
+        return true;
+      });
       unique.forEach((id) => {
         if (draft.questionStats[id]) {
           delete draft.questionStats[id];
@@ -448,7 +491,11 @@ export function App() {
         }
       }
     });
-    showToast('success', unique.length === 1 ? 'Custom question deleted.' : `${unique.length} custom questions deleted.`);
+    if (deleted === 0) {
+      showToast('success', 'No custom questions matched the selection.');
+    } else {
+      showToast('success', deleted === 1 ? 'Custom question deleted.' : `${deleted} custom questions deleted.`);
+    }
   };
 
   const handleToggleFlag = (id) => {
@@ -465,8 +512,23 @@ export function App() {
     showToast('success', isNowFlagged ? 'Question flagged for review.' : 'Flag removed.');
   };
 
-  const handleSelectHistorySession = (sessionId) => {
-    setSelectedHistorySessionId((prev) => (prev === sessionId ? null : sessionId));
+  const handleReviewSessionFromHistory = (sessionId) => {
+    if (!sessionId) return;
+    const session = (userData?.sessionHistory || []).find((item) => item.id === sessionId);
+    if (!session) {
+      showToast('error', 'Session not found.');
+      return;
+    }
+    updateUserData((draft) => {
+      draft.activeSession = {
+        ...session,
+        status: 'completed',
+        questionIds: [...(session.questionIds || [])],
+        userAnswers: clone(session.userAnswers || {}),
+        currentIndex: 0
+      };
+    });
+    setActiveView('session');
   };
 
   const handleDeleteSession = (sessionId) => {
@@ -483,9 +545,6 @@ export function App() {
         draft.activeSession = null;
       }
     });
-    if (selectedHistorySessionId === sessionId) {
-      setSelectedHistorySessionId(null);
-    }
     showToast('success', 'Session deleted.');
   };
 
@@ -539,18 +598,56 @@ export function App() {
         showToast('error', 'No questions found in file.');
         return;
       }
+      const existingIds = new Set(allQuestions.map((question) => question.id));
+      const prepared = [];
+      let skipped = 0;
+      let counter = 0;
+
+      incoming.forEach((question) => {
+        const trimmedId = typeof question.id === 'string' ? question.id.trim() : '';
+        if (trimmedId && existingIds.has(trimmedId)) {
+          skipped += 1;
+          return;
+        }
+        let finalId = trimmedId;
+        if (!finalId) {
+          do {
+            counter += 1;
+            finalId = `CUS-${Date.now()}-${counter}`;
+          } while (existingIds.has(finalId));
+        }
+        existingIds.add(finalId);
+        const sanitizedQuestion = {
+          ...question,
+          id: finalId,
+          difficulty: (question.difficulty || 'medium').toLowerCase()
+        };
+        if (typeof sanitizedQuestion.image === 'string') {
+          const trimmedImage = sanitizedQuestion.image.trim();
+          sanitizedQuestion.image = trimmedImage || undefined;
+        }
+        prepared.push(sanitizedQuestion);
+      });
+
+      if (!prepared.length) {
+        const message = skipped
+          ? `No new questions imported. Skipped ${skipped} duplicate IDs.`
+          : 'No new questions imported.';
+        showToast('error', message);
+        return;
+      }
+
       updateUserData((draft) => {
         draft.customQuestions = draft.customQuestions || [];
-        incoming.forEach((question) => {
-          if (question.id && draft.customQuestions.some((entry) => entry.id === question.id)) {
-            const uniqueId = `CUS-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-            draft.customQuestions.push({ ...question, id: uniqueId });
-          } else {
-            draft.customQuestions.push(question);
-          }
+        prepared.forEach((question) => {
+          draft.customQuestions.push(question);
         });
       });
-      showToast('success', `${incoming.length} custom questions imported.`);
+
+      const summaryMessage = skipped
+        ? `${prepared.length} question${prepared.length === 1 ? '' : 's'} imported. Skipped ${skipped} duplicate ID${skipped === 1 ? '' : 's'}.`
+        : `${prepared.length} question${prepared.length === 1 ? '' : 's'} imported.`;
+      showToast('success', summaryMessage);
     } catch (err) {
       console.error(err);
       showToast('error', 'Import failed. Ensure the file contains valid JSON.');
@@ -657,6 +754,8 @@ export function App() {
             onToggleFlag={handleToggleFlag}
             isFlagged={currentQuestion ? flaggedSet.has(currentQuestion.id) : false}
             flaggedSet={flaggedSet}
+            customQuestionIds={customQuestionIds}
+            customImageDirectory={customImageDirectory}
           />
         )}
         {activeView === 'history' && (
@@ -664,8 +763,7 @@ export function App() {
             questionsMap={questionsMap}
             userData={userData}
             onResetAll={handleResetAll}
-            selectedSessionId={selectedHistorySessionId}
-            onSelectSession={handleSelectHistorySession}
+            onSelectSession={handleReviewSessionFromHistory}
             onDeleteSession={handleDeleteSession}
           />
         )}
@@ -676,20 +774,22 @@ export function App() {
             filters={filters}
             customQuestionIds={customQuestionIds}
             flaggedSet={flaggedSet}
+            customImageDirectory={customImageDirectory}
             onCreateQuestion={handleCreateQuestion}
             onImport={handleImport}
             onExport={handleExport}
-            onResetQuestion={handleResetQuestion}
             onBulkReset={handleBulkResetQuestions}
             onDeleteCustomQuestions={handleDeleteCustomQuestions}
-            onToggleFlag={handleToggleFlag}
           />
         )}
         {activeView === 'settings' && (
           <SettingsView
             paths={storagePaths}
+            customImageDirectory={customImageDirectory}
             onChooseLocation={handleChangeStorageLocation}
             onUseDefault={handleUseDefaultStorage}
+            onSelectCustomImageDirectory={handleSelectCustomImageDirectory}
+            onPersistCustomImageDirectory={handlePersistCustomImageDirectory}
           />
         )}
       </main>
