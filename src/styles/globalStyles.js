@@ -237,6 +237,35 @@ export const globalCss = `
     color: var(--text-muted);
   }
 
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  .field-group .field-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+
+  .checkbox-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+    font-size: 14px;
+  }
+
+  .checkbox-inline input {
+    width: 18px;
+    height: 18px;
+  }
+
   textarea {
     min-height: 120px;
     resize: vertical;

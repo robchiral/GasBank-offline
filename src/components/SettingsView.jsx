@@ -113,10 +113,10 @@ export function SettingsView({
 
       <div className="card">
         <h2>Backups</h2>
-        <p style={{ color: 'var(--text-muted)', marginBottom: 18 }}>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 16 }}>
           Manage local backups of <code>userData.json</code>. Auto-backups trigger after the selected number of tracked question attempts.
         </p>
-        <div className="info-block">
+        <div className="info-block" style={{ marginBottom: 16 }}>
           <div className="info-row">
             <div className="info-label">Backup directory</div>
             <code className="info-value">{backupDirectory}</code>
@@ -130,7 +130,7 @@ export function SettingsView({
             <div className="info-value">{attemptsSinceBackup}</div>
           </div>
         </div>
-        <div className="form-row" style={{ marginBottom: 16 }}>
+        <div className="form-row" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
           <button
             className="button"
             type="button"
@@ -147,40 +147,45 @@ export function SettingsView({
             Clear Directory
           </button>
         </div>
-        <div className="form-row">
-          <label>
-            Auto-backup interval (attempts)
-            <input
-              type="number"
-              min={1}
-              value={localBackupPrefs.interval}
-              onChange={(event) =>
-                setLocalBackupPrefs((prev) => ({
-                  ...prev,
-                  interval: Math.max(1, Math.round(Number(event.target.value) || 1))
-                }))
-              }
-            />
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-            <input
-              type="checkbox"
-              checked={localBackupPrefs.autoEnabled}
-              onChange={(event) =>
-                setLocalBackupPrefs((prev) => ({
-                  ...prev,
-                  autoEnabled: event.target.checked
-                }))
-              }
-              style={{ width: 18, height: 18 }}
-            />
-            Enable auto-backup
-          </label>
+        <div className="divider" style={{ margin: '12px 0 16px' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="form-row">
+            <label>
+              Auto-backup interval (attempts)
+              <input
+                type="number"
+                min={1}
+                value={localBackupPrefs.interval}
+                onChange={(event) =>
+                  setLocalBackupPrefs((prev) => ({
+                    ...prev,
+                    interval: Math.max(1, Math.round(Number(event.target.value) || 1))
+                  }))
+                }
+              />
+            </label>
+            <div className="field-group">
+              <span className="field-label">Auto-backup setting</span>
+              <label className="checkbox-inline">
+                <input
+                  type="checkbox"
+                  checked={localBackupPrefs.autoEnabled}
+                  onChange={(event) =>
+                    setLocalBackupPrefs((prev) => ({
+                      ...prev,
+                      autoEnabled: event.target.checked
+                    }))
+                  }
+                />
+                Enable auto-backup
+              </label>
+            </div>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+            Auto-backups run only when a backup directory is set.
+          </p>
         </div>
-        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: -6 }}>
-          Auto-backups run only when a backup directory is set.
-        </p>
-        <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
           <button
             className="button secondary"
             type="button"

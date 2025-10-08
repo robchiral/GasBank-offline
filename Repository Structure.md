@@ -16,10 +16,10 @@
   - `SessionView.jsx` — in-session question flow, answer submission, flagging.
   - `SessionConfigurator.jsx` — modal for building session parameters with a live matching-question count.
   - `HistoryView.jsx` — past session list with filtering, scrollable attempt log, and restore logic.
-  - `ContentView.jsx` — question browser, import/export utilities, and a custom question editor that supports adding/removing answer choices (text required, explanations optional).
-  - `SettingsView.jsx` — surfaces user data paths, backup directory/automation controls, and lets users adjust default session configuration.
+  - `ContentView.jsx` — question browser, import/export utilities, and a custom question editor that supports adding/removing answer choices (text required, explanations optional) using a shared state builder to keep resets consistent.
+  - `SettingsView.jsx` — surfaces user data paths, backup directory/automation controls, and lets users adjust default session configuration. The Backups panel now separates directory info, action buttons, and auto-backup preferences with aligned checkbox + interval inputs.
   - `Charts.jsx` — reusable chart primitives for dashboard analytics.
   - `Toast.jsx` — lightweight notification component.
 - `constants.js` — shared enums/defaults (session config, status labels).
-- `styles/globalStyles.js` — injected global styles and CSS variables.
+- `styles/globalStyles.js` — injected global styles, CSS variables, and shared form helpers used to align checkboxes with standard inputs.
 - `utils/dataUtils.js` — normalization helpers, scoring logic, and aggregation utilities used by `<App />`.

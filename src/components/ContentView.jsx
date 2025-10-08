@@ -12,6 +12,19 @@ const buildDefaultAnswers = () =>
     explanation: ''
   }));
 
+const buildEmptyQuestion = () => ({
+  id: '',
+  category: '',
+  subcategory: '',
+  difficulty: 'medium',
+  questionText: '',
+  image: '',
+  imageAlt: '',
+  answers: buildDefaultAnswers(),
+  didactic: '',
+  educationalObjective: ''
+});
+
 export function ContentView({
   allQuestions,
   userData,
@@ -79,18 +92,7 @@ export function ContentView({
     });
   }, [allQuestions, categoryFilter, difficultyFilter, search, sourceFilter, customQuestionIds]);
 
-  const [newQuestion, setNewQuestion] = React.useState(() => ({
-    id: '',
-    category: '',
-    subcategory: '',
-    difficulty: 'medium',
-    questionText: '',
-    image: '',
-    imageAlt: '',
-    answers: buildDefaultAnswers(),
-    didactic: '',
-    educationalObjective: ''
-  }));
+  const [newQuestion, setNewQuestion] = React.useState(() => buildEmptyQuestion());
 
   const selectedArray = React.useMemo(() => Array.from(selectedIds), [selectedIds]);
   const selectedCount = selectedArray.length;
@@ -174,16 +176,7 @@ export function ContentView({
       return;
     }
     onCreateQuestion({ ...newQuestion, answers: trimmedAnswers });
-    setNewQuestion((prev) => ({
-      ...prev,
-      id: '',
-      questionText: '',
-      image: '',
-      imageAlt: '',
-      answers: buildDefaultAnswers(),
-      didactic: '',
-      educationalObjective: ''
-    }));
+    setNewQuestion(buildEmptyQuestion());
   };
 
   const handleResetSelected = () => {
@@ -500,7 +493,16 @@ export function ContentView({
               />
             </div>
           ))}
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 12,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              marginTop: 8,
+              marginBottom: 20
+            }}
+          >
             <button
               className="button secondary"
               type="button"
