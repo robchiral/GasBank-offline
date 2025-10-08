@@ -350,11 +350,14 @@ export const globalCss = `
   }
 
   .markdown-content .katex-mathml {
-    position: absolute;
-    left: -10000px;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    clip: rect(0, 0, 0, 0) !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
   }
 
   .markdown-content .katex-html {
