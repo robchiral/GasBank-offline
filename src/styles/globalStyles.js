@@ -679,6 +679,73 @@ export const globalCss = `
     line-height: 1.5;
   }
 
+  .palette-card {
+    display: flex;
+    flex-direction: column;
+    align-self: flex-start;
+    max-height: min(520px, 70vh);
+  }
+
+  .palette-card .question-palette-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+    margin-top: 4px;
+    position: relative;
+    border-radius: 14px;
+  }
+
+  .palette-card .question-palette-container::before,
+  .palette-card .question-palette-container::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 8px;
+    height: 20px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    background: linear-gradient(to bottom, var(--card-bg), transparent);
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--card-bg) 92%, transparent),
+      transparent
+    );
+    z-index: 1;
+  }
+
+  .palette-card .question-palette-container::before {
+    top: 0;
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+  }
+
+  .palette-card .question-palette-container::after {
+    bottom: 0;
+    transform: rotate(180deg);
+    border-bottom-left-radius: inherit;
+    border-bottom-right-radius: inherit;
+  }
+
+  .palette-card .question-palette-container.has-scroll-shadow-top::before {
+    opacity: 1;
+  }
+
+  .palette-card .question-palette-container.has-scroll-shadow-bottom::after {
+    opacity: 1;
+  }
+
+  @media (max-width: 900px) {
+    .palette-card {
+      max-height: min(460px, 60vh);
+    }
+    .palette-card .question-palette-container::before,
+    .palette-card .question-palette-container::after {
+      height: 16px;
+    }
+  }
+
   .question-palette {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));

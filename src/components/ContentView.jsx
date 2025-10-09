@@ -250,7 +250,7 @@ export function ContentView({
           <label>
             Category
             <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
-              <option value="all">All</option>
+              <option value="all">All categories</option>
               {filters.categories.map((category) => (
                 <option key={category} value={category}>
                   {category}
@@ -261,10 +261,10 @@ export function ContentView({
           <label>
             Difficulty
             <select value={difficultyFilter} onChange={(event) => setDifficultyFilter(event.target.value)}>
-              <option value="all">All</option>
+              <option value="all">All levels</option>
               {filters.difficulties.map((difficulty) => (
                 <option key={difficulty} value={difficulty}>
-                  {difficulty.toUpperCase()}
+                  {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
                 </option>
               ))}
             </select>

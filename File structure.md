@@ -13,14 +13,14 @@
 - `app/App.jsx` — top-level React component; coordinates data loading (including `prepareQuestions` pre-processing), routing between views, state mutations, and IPC calls.
 - `components/`
   - `Dashboard.jsx` — summary metrics with leading quick session actions, scrollable category breakdown charts, and review flows that disable when no items need attention.
-  - `SessionView.jsx` — in-session question flow, answer submission, Markdown-rendered prompts/didactics/answers, and a fixed bottom control bar that houses flag and navigation buttons without jumping.
+  - `SessionView.jsx` — in-session question flow, answer submission, Markdown-rendered prompts/didactics/answers, and a fixed bottom control bar that houses flag and navigation buttons without jumping. The Question Palette list now lives inside a capped, scrollable container with edge fades that appear only when overflowed so long sessions keep the sidebar tidy without obscuring items.
   - `SessionConfigurator.jsx` — modal for building session parameters with a live matching-question count and a multi-select dropdown for category filters.
   - `HistoryView.jsx` — past session list with filtering, scrollable attempt log, educational-objective summaries, and restore logic.
-  - `ContentView.jsx` — question browser, import/export utilities, and a custom question editor that supports adding/removing answer choices (text required, explanations optional) using a shared state builder to keep resets consistent. Question cards emphasize the educational objective to stay concise.
+  - `ContentView.jsx` — question browser, import/export utilities, and a custom question editor that supports adding/removing answer choices (text required, explanations optional) using a shared state builder to keep resets consistent. Question cards emphasize the educational objective to stay concise, and dropdown copy matches the session configurator (“All categories,” “All levels”) to keep filters consistent.
   - `SettingsView.jsx` — surfaces appearance controls (system/light/dark), user data paths, backup directory/automation settings, and lets users adjust default session configuration. The Backups panel now separates directory info, action buttons, and auto-backup preferences with aligned checkbox + interval inputs.
   - `Charts.jsx` — reusable chart primitives for dashboard analytics.
   - `Toast.jsx` — lightweight notification component.
   - `MarkdownContent.jsx` — shared Markdown renderer (GFM + math) that powers question prompts, answer choices, stems, didactics, and objectives with KaTeX output.
 - `constants.js` — shared enums/defaults (session config, status labels).
-- `styles/globalStyles.js` — injected global styles, CSS variables (including light/dark theme tokens), Markdown/table styling, scroll helpers for analytics, the fixed session control bar layout, and shared form helpers used to align checkboxes with standard inputs.
+- `styles/globalStyles.js` — injected global styles, CSS variables (including light/dark theme tokens), Markdown/table styling, scroll helpers for analytics, the fixed session control bar layout, a capped palette container with conditional gradient overlays for session navigation, and shared form helpers used to align checkboxes with standard inputs.
 - `utils/dataUtils.js` — normalization helpers, scoring logic, cached question metadata (`prepareQuestions`), and defensive cloning that prefers `structuredClone`, all shared across `<App />` and supporting components.

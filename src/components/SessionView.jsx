@@ -38,6 +38,48 @@ export function SessionView({
   customQuestionIds,
   customImageDirectory
 }) {
+  const paletteRef = React.useRef(null);
+  const paletteShadowUpdaterRef = React.useRef(() => {});
+
+  React.useEffect(() => {
+    const element = paletteRef.current;
+    if (!element) return;
+
+    const updateShadows = () => {
+      const scrollable = element.scrollHeight - element.clientHeight > 1;
+      const atTop = element.scrollTop <= 0;
+      const atBottom = element.scrollHeight - element.clientHeight - element.scrollTop <= 1;
+      const showTopShadow = scrollable && !atTop;
+      const showBottomShadow = scrollable && !atBottom && !atTop;
+
+      element.classList.toggle('is-scrollable', scrollable);
+      element.classList.toggle('has-scroll-shadow-top', showTopShadow);
+      element.classList.toggle('has-scroll-shadow-bottom', showBottomShadow);
+    };
+
+    paletteShadowUpdaterRef.current = updateShadows;
+    updateShadows();
+
+    element.addEventListener('scroll', updateShadows, { passive: true });
+
+    let resizeObserver;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(updateShadows);
+      resizeObserver.observe(element);
+    }
+
+    return () => {
+      element.removeEventListener('scroll', updateShadows);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
+  }, [session.questionIds.length]);
+
+  React.useEffect(() => {
+    paletteShadowUpdaterRef.current();
+  }, [question.id, session.questionIds.length]);
+
   if (!session || !question) {
     return <div className="empty-state">No active session. Start a new study session from the dashboard.</div>;
   }
@@ -134,18 +176,20 @@ export function SessionView({
             </div>
           )}
         </div>
-        <div className="card">
+        <div className="card palette-card">
           <h3 style={{ marginTop: 0, marginBottom: 10 }}>Question Palette</h3>
-          <div className="question-palette">
-            {session.questionIds.map((id, idx) => (
-              <div
-                key={id}
-                className={`${derivePaletteClass(id, question.id, session)}${flaggedSet?.has(id) ? ' flagged' : ''}`}
-                onClick={() => onNavigate(idx)}
-              >
-                {idx + 1}
-              </div>
-            ))}
+          <div className="question-palette-container" ref={paletteRef}>
+            <div className="question-palette">
+              {session.questionIds.map((id, idx) => (
+                <div
+                  key={id}
+                  className={`${derivePaletteClass(id, question.id, session)}${flaggedSet?.has(id) ? ' flagged' : ''}`}
+                  onClick={() => onNavigate(idx)}
+                >
+                  {idx + 1}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
