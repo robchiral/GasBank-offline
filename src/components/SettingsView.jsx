@@ -12,7 +12,10 @@ export function SettingsView({
   onClearBackupDirectory,
   onUpdateBackupPreferences,
   onCreateBackup,
-  onImportBackup
+  onImportBackup,
+  themePreference,
+  resolvedTheme,
+  onUpdateThemePreference
 }) {
   const defaultImageDirectory = React.useMemo(() => {
     if (!paths.currentUserDataPath) return null;
@@ -27,6 +30,15 @@ export function SettingsView({
     () => ({ ...DEFAULT_SESSION_CONFIG, ...(sessionDefaults || {}) }),
     [sessionDefaults]
   );
+  const normalizedThemePreference = themePreference || 'system';
+  const effectiveTheme = React.useMemo(() => {
+    if (resolvedTheme === 'light' || resolvedTheme === 'dark') {
+      return resolvedTheme;
+    }
+    if (normalizedThemePreference === 'light') return 'light';
+    if (normalizedThemePreference === 'dark') return 'dark';
+    return 'dark';
+  }, [normalizedThemePreference, resolvedTheme]);
 
   const [localDefaults, setLocalDefaults] = React.useState(mergedDefaults);
   const backupAutoEnabled = backupState?.preferences?.autoEnabled ?? true;
@@ -94,6 +106,30 @@ export function SettingsView({
         <div>
           <h1>Settings</h1>
         </div>
+      </div>
+
+      <div className="card">
+        <h2>Appearance</h2>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 18 }}>
+          Choose whether GasBank follows your system theme or stays in light or dark mode.
+        </p>
+        <div className="form-row" style={{ maxWidth: 360, marginBottom: 10 }}>
+          <label>
+            Theme preference
+            <select
+              value={normalizedThemePreference}
+              onChange={(event) => onUpdateThemePreference && onUpdateThemePreference(event.target.value)}
+            >
+              <option value="system">Match system setting</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+        </div>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+          Currently using <strong>{effectiveTheme === 'light' ? 'light' : 'dark'}</strong> mode
+          {normalizedThemePreference === 'system' ? ' (matching system preference)' : ''}.
+        </p>
       </div>
 
       <div className="card">

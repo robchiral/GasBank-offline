@@ -118,7 +118,7 @@ export function SessionView({
             })}
           </div>
           {showFeedback && question.didactic && (
-            <div className="card" style={{ background: 'rgba(15, 23, 42, 0.6)' }}>
+            <div className="card callout-card">
               <h3 style={{ marginTop: 0 }}>Didactic Summary</h3>
               <MarkdownContent className="question-didactic">
                 {question.didactic}
@@ -126,7 +126,7 @@ export function SessionView({
             </div>
           )}
           {showFeedback && question.educationalObjective && (
-            <div className="card" style={{ background: 'rgba(15, 23, 42, 0.6)' }}>
+            <div className="card callout-card">
               <h3 style={{ marginTop: 0 }}>Educational Objective</h3>
               <MarkdownContent className="question-objective">
                 {question.educationalObjective}

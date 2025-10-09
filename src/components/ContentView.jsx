@@ -306,15 +306,7 @@ export function ContentView({
             return (
               <div
                 key={question.id}
-                style={{
-                  borderRadius: 16,
-                  border: '1px solid rgba(56, 189, 248, 0.12)',
-                  padding: 18,
-                  background: 'rgba(16, 26, 43, 0.65)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 12
-                }}
+                className={`content-question-card${isSelected ? ' selected' : ''}`}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', minWidth: 0 }}>
@@ -443,16 +435,7 @@ export function ContentView({
           {newQuestion.answers.map((answer, idx) => (
             <div
               key={idx}
-              style={{
-                borderRadius: 12,
-                border: '1px solid rgba(56, 189, 248, 0.12)',
-                padding: 14,
-                marginBottom: 12,
-                background: 'rgba(12, 21, 39, 0.65)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 10
-              }}
+              className="create-answer-card"
             >
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                 <span style={{ fontWeight: 600, minWidth: 26 }}>{String.fromCharCode(65 + idx)}.</span>

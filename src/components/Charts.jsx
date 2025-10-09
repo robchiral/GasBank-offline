@@ -24,8 +24,8 @@ export function PieChart({ data }) {
           height: 160,
           borderRadius: '50%',
           background: `conic-gradient(${segments})`,
-          border: '12px solid rgba(15, 23, 42, 0.85)',
-          boxShadow: '0 12px 30px rgba(8, 20, 33, 0.5)'
+          border: '12px solid var(--chart-rim)',
+          boxShadow: 'var(--chart-shadow)'
         }}
       />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

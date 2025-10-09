@@ -17,10 +17,10 @@
   - `SessionConfigurator.jsx` — modal for building session parameters with a live matching-question count and a multi-select dropdown for category filters.
   - `HistoryView.jsx` — past session list with filtering, scrollable attempt log, educational-objective summaries, and restore logic.
   - `ContentView.jsx` — question browser, import/export utilities, and a custom question editor that supports adding/removing answer choices (text required, explanations optional) using a shared state builder to keep resets consistent. Question cards emphasize the educational objective to stay concise.
-  - `SettingsView.jsx` — surfaces user data paths, backup directory/automation controls, and lets users adjust default session configuration. The Backups panel now separates directory info, action buttons, and auto-backup preferences with aligned checkbox + interval inputs.
+  - `SettingsView.jsx` — surfaces appearance controls (system/light/dark), user data paths, backup directory/automation settings, and lets users adjust default session configuration. The Backups panel now separates directory info, action buttons, and auto-backup preferences with aligned checkbox + interval inputs.
   - `Charts.jsx` — reusable chart primitives for dashboard analytics.
   - `Toast.jsx` — lightweight notification component.
   - `MarkdownContent.jsx` — shared Markdown renderer (GFM + math) that powers question prompts, answer choices, stems, didactics, and objectives with KaTeX output.
 - `constants.js` — shared enums/defaults (session config, status labels).
-- `styles/globalStyles.js` — injected global styles, CSS variables, Markdown/table styling, scroll helpers for analytics, the fixed session control bar layout, and shared form helpers used to align checkboxes with standard inputs.
+- `styles/globalStyles.js` — injected global styles, CSS variables (including light/dark theme tokens), Markdown/table styling, scroll helpers for analytics, the fixed session control bar layout, and shared form helpers used to align checkboxes with standard inputs.
 - `utils/dataUtils.js` — normalization helpers, scoring logic, and aggregation utilities used by `<App />`.

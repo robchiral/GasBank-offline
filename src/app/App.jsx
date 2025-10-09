@@ -37,10 +37,12 @@ export function App() {
     defaultUserDataPath: ''
   });
   const [customImageDirectory, setCustomImageDirectory] = useState(null);
+  const [resolvedTheme, setResolvedTheme] = useState('dark');
   const autoBackupInFlight = useRef(false);
   const sessionDefaults = useMemo(() => {
     return { ...DEFAULT_SESSION_CONFIG, ...(userData?.userSettings?.defaultSessionConfig || {}) };
   }, [userData?.userSettings?.defaultSessionConfig]);
+  const themePreference = userData?.userSettings?.theme || 'system';
 
   const backupState = useMemo(() => {
     const preferences = userData?.userSettings?.backupPreferences || {};
@@ -58,6 +60,24 @@ export function App() {
   useEffect(() => {
     injectGlobalStyles();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const applyTheme = () => {
+      const nextTheme =
+        themePreference === 'system' ? (mediaQuery.matches ? 'dark' : 'light') : themePreference;
+      setResolvedTheme(nextTheme);
+      document.documentElement.setAttribute('data-theme', nextTheme);
+      document.documentElement.style.colorScheme = nextTheme;
+    };
+    applyTheme();
+    if (themePreference === 'system') {
+      mediaQuery.addEventListener('change', applyTheme);
+      return () => mediaQuery.removeEventListener('change', applyTheme);
+    }
+    return undefined;
+  }, [themePreference]);
 
   useEffect(() => {
     let cancelled = false;
@@ -654,6 +674,20 @@ export function App() {
     showToast('success', 'Session deleted.');
   };
 
+  const handleUpdateThemePreference = (preference) => {
+    const allowed = ['system', 'dark', 'light'];
+    const sanitized = allowed.includes(preference) ? preference : 'system';
+    updateUserData((draft) => {
+      draft.userSettings = draft.userSettings || {};
+      draft.userSettings.theme = sanitized;
+    });
+    const message =
+      sanitized === 'system'
+        ? 'Theme set to match system preference.'
+        : `Theme switched to ${sanitized} mode.`;
+    showToast('success', message);
+  };
+
   const handleCreateQuestion = (question) => {
     const existing = allQuestions.find((entry) => entry.id === question.id && question.id);
     if (existing && question.id) {
@@ -922,6 +956,9 @@ export function App() {
             onUpdateBackupPreferences={handleUpdateBackupPreferences}
             onCreateBackup={handleCreateBackup}
             onImportBackup={handleImportBackup}
+            themePreference={themePreference}
+            resolvedTheme={resolvedTheme}
+            onUpdateThemePreference={handleUpdateThemePreference}
           />
         )}
       </main>
