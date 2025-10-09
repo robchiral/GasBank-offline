@@ -10,7 +10,7 @@
 ## `src/` Breakdown
 - `index.html` — static shell loaded by Electron; mounts the React bundle.
 - `main.jsx` — renderer entry point that mounts `<App />`, wires in error boundaries, and pulls in KaTeX styles for Markdown math support.
-- `app/App.jsx` — top-level React component; coordinates data loading, routing between views, state mutations, and IPC calls.
+- `app/App.jsx` — top-level React component; coordinates data loading (including `prepareQuestions` pre-processing), routing between views, state mutations, and IPC calls.
 - `components/`
   - `Dashboard.jsx` — summary metrics with leading quick session actions, scrollable category breakdown charts, and review flows that disable when no items need attention.
   - `SessionView.jsx` — in-session question flow, answer submission, Markdown-rendered prompts/didactics/answers, and a fixed bottom control bar that houses flag and navigation buttons without jumping.
@@ -23,4 +23,4 @@
   - `MarkdownContent.jsx` — shared Markdown renderer (GFM + math) that powers question prompts, answer choices, stems, didactics, and objectives with KaTeX output.
 - `constants.js` — shared enums/defaults (session config, status labels).
 - `styles/globalStyles.js` — injected global styles, CSS variables (including light/dark theme tokens), Markdown/table styling, scroll helpers for analytics, the fixed session control bar layout, and shared form helpers used to align checkboxes with standard inputs.
-- `utils/dataUtils.js` — normalization helpers, scoring logic, and aggregation utilities used by `<App />`.
+- `utils/dataUtils.js` — normalization helpers, scoring logic, cached question metadata (`prepareQuestions`), and defensive cloning that prefers `structuredClone`, all shared across `<App />` and supporting components.

@@ -18,7 +18,7 @@
 
 ## Data Flow
 1. On launch the renderer calls `gasbank.loadData()`, which loads bundled questions and ensures `userData.json`/`images/`.
-2. Renderer state is normalized in `src/utils/dataUtils.js` and distributed across views through React context/state lifting inside `App.jsx`.
+2. Renderer state is normalized in `src/utils/dataUtils.js`—`prepareQuestions` precomputes each question’s `correctAnswerIndex` while `normalizeUserData` hydrates persisted settings—and then distributed across views through React context/state lifting inside `App.jsx`.
 3. Mutations (sessions, stats, custom questions, settings flags) call back into `gasbank.saveUserData`, which rewrites `userData.json` and guarantees the image directory exists.
 4. Imports/exports and analytics derive from the same unified question list composed of shipped plus custom items.
 
@@ -35,5 +35,6 @@
 - Core asset references stay rooted in `data/images/`, while custom content expects images to live under the managed user-data `images/` directory; the UI only references filenames to keep paths portable across machines.
 - Backup automation relies on accurate attempt tracking; filesystem helpers guard against missing directories before writing timestamped snapshots.
 - File operations are centralized in the Electron main process to preserve sandbox boundaries and ease cross-platform support.
+- The shared `clone` helper prefers `structuredClone` (when available) before falling back to JSON serialization so state updates stay defensive without incurring unnecessary copy cost.
 - Shared form helpers (`field-group`, `checkbox-inline`) keep checkbox-based controls vertically aligned with their peer inputs, reducing ad-hoc spacing overrides when new settings panels are added, and the theme token palette (`--bg`, `--card-bg`, `--session-controls-bg`, etc.) keeps light/dark styling centralized.
 - Question content accepts GitHub-flavored Markdown (with KaTeX-backed math) so authors can embed lists, tables, emphasis, hyperlinks, and equations inside prompts or didactics without introducing custom HTML.
