@@ -40,6 +40,7 @@ export function SessionView({
 }) {
   const paletteRef = React.useRef(null);
   const paletteShadowUpdaterRef = React.useRef(() => {});
+  const paletteQuestionCount = session?.questionIds?.length ?? 0;
 
   React.useEffect(() => {
     const element = paletteRef.current;
@@ -74,11 +75,13 @@ export function SessionView({
         resizeObserver.disconnect();
       }
     };
-  }, [session.questionIds.length]);
+  }, [paletteQuestionCount]);
 
   React.useEffect(() => {
-    paletteShadowUpdaterRef.current();
-  }, [question.id, session.questionIds.length]);
+    if (typeof paletteShadowUpdaterRef.current === 'function') {
+      paletteShadowUpdaterRef.current();
+    }
+  }, [paletteQuestionCount, question?.id]);
 
   if (!session || !question) {
     return <div className="empty-state">No active session. Start a new study session from the dashboard.</div>;
