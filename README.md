@@ -1,10 +1,10 @@
 # GasBank
 
-**Free, open-source anesthesiology question bank built for students who want a focused, modern study companion.**
+**Free, open-source anesthesiology question bank built for medical students and interns who want a focused, modern study companion.**
 
 - 100% free forever — app and questions are open source.
 - Curated to cover the ABA BASIC content outline with anesthesia-first framing.
-- Bridges the gap between USMLE Step 2 prep and your anesthesia residency start.
+- Bridges the gap between USMLE Step 2 prep and CA-1 year.
 - Backed by high-quality LLM drafting (GPT-5 reasoning) and cross-reviewed (Gemini 2.5 Pro) before shipping; items are re-reviewed annually.
 
 ---
@@ -13,10 +13,8 @@
 
 - **Residency-ready content**: Focused explanations and objectives highlight what matters in the OR.
 - **Interactive practice**: Tutor & Exam modes, built-in analytics, and snapshots of your performance by category.
-- **Offline-first**: Runs entirely on your machine—no login, no telemetry, no slow web dashboards.
-- **Keep costs down**: A free alternative to pricey subscriptions, perfect for student budgets.
-
-> _“GasBank gave me focused reps on anesthesia questions that don’t show up in step prep. It felt like the missing bridge into residency.”_
+- **Offline-first**: Runs entirely on your machine without logins.
+- **Keep costs down**: A free alternative to pricey subscriptions.
 
 ---
 
@@ -74,4 +72,4 @@ Support project costs: [Donate on PayPal](https://www.paypal.com/donate/?hosted_
 
 ## License
 
-GasBank is released under the MIT License. Study hard, share freely, and help your classmates get ready for residency. 💪
+GasBank is released under the MIT License.
