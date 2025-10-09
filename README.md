@@ -1,6 +1,6 @@
 # GasBank
 
-**Free, open-source anesthesiology question bank built for medical students and interns who want a focused, modern study companion.**
+**Free, open-source anesthesiology question bank built for medical students and interns.**
 
 - 100% free forever — app and questions are open source.
 - Curated to cover the ABA BASIC content outline with anesthesia-first framing.
@@ -9,7 +9,7 @@
 
 ---
 
-## Why Students Love It
+## Built for Students
 
 - **Residency-ready content**: Focused explanations and objectives highlight what matters in the OR.
 - **Interactive practice**: Tutor & Exam modes, built-in analytics, and snapshots of your performance by category.
@@ -45,15 +45,6 @@ To build the production bundle:
 ```bash
 npm run build
 ```
-
----
-
-## Built With Students in Mind
-
-- **Free & open:** Fork it, extend it, or contribute new question sets without paywalls.
-- **Customizable sessions:** Tailor quizzes to your weak areas before call nights.
-- **Structured backups:** Safeguard progress to a directory of your choice.
-- **Tailored analytics:** Keep an eye on mastery by category, difficulty, and flag status.
 
 ---
 
