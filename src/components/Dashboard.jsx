@@ -20,23 +20,6 @@ export function Dashboard({
         </div>
       </div>
 
-      <div className="grid two">
-        <div className="card">
-          <h2>Overall Performance</h2>
-          <PieChart
-            data={[
-              { label: 'Correct', value: summary.correct, color: 'rgba(52, 211, 153, 0.9)' },
-              { label: 'Incorrect', value: summary.incorrect, color: 'rgba(248, 113, 113, 0.8)' },
-              { label: 'Unanswered', value: summary.unanswered, color: 'rgba(148, 163, 184, 0.55)' }
-            ]}
-          />
-        </div>
-        <div className="card">
-          <h2>Category Breakdown</h2>
-          <CategoryBars breakdown={breakdown} />
-        </div>
-      </div>
-
       <div className="card">
         <h2>Quick Actions</h2>
         <div className="stats-row">
@@ -75,6 +58,25 @@ export function Dashboard({
           <button className="button secondary" onClick={onResumeSession} disabled={!hasActiveSession}>
             Resume Last Session
           </button>
+        </div>
+      </div>
+
+      <div className="grid two">
+        <div className="card">
+          <h2>Overall Performance</h2>
+          <PieChart
+            data={[
+              { label: 'Correct', value: summary.correct, color: 'rgba(52, 211, 153, 0.9)' },
+              { label: 'Incorrect', value: summary.incorrect, color: 'rgba(248, 113, 113, 0.8)' },
+              { label: 'Unanswered', value: summary.unanswered, color: 'rgba(148, 163, 184, 0.55)' }
+            ]}
+          />
+        </div>
+        <div className="card">
+          <h2>Category Breakdown</h2>
+          <div className="category-scroll">
+            <CategoryBars breakdown={breakdown} />
+          </div>
         </div>
       </div>
     </div>

@@ -97,12 +97,17 @@ export function SessionView({
               if (showFeedback && isSelected && !isCorrectChoice) className += ' incorrect';
               return (
                 <div
-                  key={answer.text}
+                  key={`${question.id}-${index}`}
                   className={className}
                   onClick={() => onSelectAnswer(index)}
                   role="button"
                 >
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>{String.fromCharCode(65 + index)}. {answer.text}</div>
+                  <div className="answer-option-header">
+                    <span className="answer-letter">{String.fromCharCode(65 + index)}.</span>
+                    <MarkdownContent className="answer-text">
+                      {answer.text}
+                    </MarkdownContent>
+                  </div>
                   {showFeedback && (
                     <MarkdownContent className="explanation">
                       {answer.explanation}

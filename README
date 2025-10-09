@@ -1,0 +1,13 @@
+- 100% free and open source application and questions
+- Questions designed to fully cover ABA BASIC content outline
+- All questions are anesthesia-focused and designed to cover content NOT already covered in USMLE Step 2 preparation
+- Designed to help 4th-year medical students transition from medical school (e.g., USMLE Step 2 studying) to anesthesia residency
+- Stringent quality control: All questions generated using the advanced, up-to-date reasoning models (currently GPT-5 with medium reasoning), and reviewed for accuracy by another reasoning model (currently Gemini 2.5 Pro). Only questions passing review are included in final question bank. Questions will be re-reviewed and updated on an annual basis. 
+
+Caveats
+- Not for everyone! LLM hesitancy is completely understandable. 
+- We aim to complement tried-and-true resources (textbooks like M&M) using a more interactive, bite-sized approach while minimizing costs.
+- Application support images, but currently no image-based questions, as difficult to find open-source high-quality images. Please consider contributing image + question pairs.
+
+Help support project costs:
+https://www.paypal.com/donate/?hosted_button_id=E9AH3MYABRBAL

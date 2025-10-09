@@ -543,6 +543,29 @@ export const globalCss = `
     transition: border 0.2s, transform 0.1s;
   }
 
+  .answer-option-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    color: var(--text);
+  }
+
+  .answer-letter {
+    font-weight: 600;
+    flex: 0 0 auto;
+    margin-top: 2px;
+  }
+
+  .answer-text {
+    flex: 1 1 auto;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .answer-text p:last-child {
+    margin-bottom: 0;
+  }
+
   .answer-option.selected {
     border-color: rgba(56, 189, 248, 0.8);
     background: rgba(56, 189, 248, 0.08);
@@ -694,6 +717,16 @@ export const globalCss = `
   .chart {
     position: relative;
     min-height: 200px;
+  }
+
+  .category-scroll {
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 6px;
+  }
+
+  .category-scroll .bar-row:last-child {
+    margin-bottom: 0;
   }
 
   .bar-row {

@@ -12,15 +12,15 @@
 - `main.jsx` — renderer entry point that mounts `<App />`, wires in error boundaries, and pulls in KaTeX styles for Markdown math support.
 - `app/App.jsx` — top-level React component; coordinates data loading, routing between views, state mutations, and IPC calls.
 - `components/`
-  - `Dashboard.jsx` — summary metrics with quick session actions that disable review flows when no items need attention.
-  - `SessionView.jsx` — in-session question flow, answer submission, Markdown-rendered prompts/didactics, and a fixed bottom control bar that houses flag and navigation buttons without jumping.
+  - `Dashboard.jsx` — summary metrics with leading quick session actions, scrollable category breakdown charts, and review flows that disable when no items need attention.
+  - `SessionView.jsx` — in-session question flow, answer submission, Markdown-rendered prompts/didactics/answers, and a fixed bottom control bar that houses flag and navigation buttons without jumping.
   - `SessionConfigurator.jsx` — modal for building session parameters with a live matching-question count and a multi-select dropdown for category filters.
   - `HistoryView.jsx` — past session list with filtering, scrollable attempt log, educational-objective summaries, and restore logic.
   - `ContentView.jsx` — question browser, import/export utilities, and a custom question editor that supports adding/removing answer choices (text required, explanations optional) using a shared state builder to keep resets consistent. Question cards emphasize the educational objective to stay concise.
   - `SettingsView.jsx` — surfaces user data paths, backup directory/automation controls, and lets users adjust default session configuration. The Backups panel now separates directory info, action buttons, and auto-backup preferences with aligned checkbox + interval inputs.
   - `Charts.jsx` — reusable chart primitives for dashboard analytics.
   - `Toast.jsx` — lightweight notification component.
-  - `MarkdownContent.jsx` — shared Markdown renderer (GFM + math) that powers question prompts, stems, didactics, and objectives with KaTeX output.
+  - `MarkdownContent.jsx` — shared Markdown renderer (GFM + math) that powers question prompts, answer choices, stems, didactics, and objectives with KaTeX output.
 - `constants.js` — shared enums/defaults (session config, status labels).
-- `styles/globalStyles.js` — injected global styles, CSS variables, Markdown/table styling, the fixed session control bar layout, and shared form helpers used to align checkboxes with standard inputs.
+- `styles/globalStyles.js` — injected global styles, CSS variables, Markdown/table styling, scroll helpers for analytics, the fixed session control bar layout, and shared form helpers used to align checkboxes with standard inputs.
 - `utils/dataUtils.js` — normalization helpers, scoring logic, and aggregation utilities used by `<App />`.
