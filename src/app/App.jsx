@@ -17,6 +17,7 @@ import {
   evaluateSessionResults,
   normalizeUserData,
   prepareAttemptRecord,
+  prepareQuestions,
   scoreAnswer
 } from '../utils/dataUtils.js';
 import { injectGlobalStyles } from '../styles/globalStyles.js';
@@ -85,16 +86,24 @@ export function App() {
       try {
         const payload = await window.gasbank.loadData();
         if (cancelled) return;
-        setBaseQuestions(payload.questions || []);
+        const preparedQuestions = prepareQuestions(payload.questions || []);
+        setBaseQuestions(preparedQuestions);
         const normalizedUser = normalizeUserData(payload.userData || {});
-        setUserData(normalizedUser);
-        setSessionConfig({ ...DEFAULT_SESSION_CONFIG, ...(normalizedUser.userSettings?.defaultSessionConfig || {}) });
+        const preparedUserData = {
+          ...normalizedUser,
+          customQuestions: prepareQuestions(normalizedUser.customQuestions || [])
+        };
+        setUserData(preparedUserData);
+        setSessionConfig({
+          ...DEFAULT_SESSION_CONFIG,
+          ...(preparedUserData.userSettings?.defaultSessionConfig || {})
+        });
         if (payload.paths) {
           setStoragePaths(payload.paths);
         }
         const initialImageDir =
           payload.storage?.customImageDirectory ??
-          normalizedUser.storage?.customImageDirectory ??
+          preparedUserData.storage?.customImageDirectory ??
           null;
         setCustomImageDirectory(initialImageDir);
         setLoading(false);
@@ -716,6 +725,7 @@ export function App() {
       showToast('error', 'Select exactly one correct answer.');
       return;
     }
+    const correctIndex = preparedAnswers.findIndex((answer) => answer.isCorrect);
     const finalQuestion = {
       id: question.id?.trim() || `CUS-${Date.now()}`,
       category: question.category?.trim() || '',
@@ -723,6 +733,7 @@ export function App() {
       difficulty: question.difficulty?.toLowerCase() || 'medium',
       questionText: question.questionText?.trim() || '',
       answers: preparedAnswers,
+      correctAnswerIndex: correctIndex,
       didactic: question.didactic?.trim() || '',
       educationalObjective: question.educationalObjective?.trim() || ''
     };
@@ -781,10 +792,15 @@ export function App() {
           id: finalId,
           difficulty: (question.difficulty || 'medium').toLowerCase()
         };
+        if (!Array.isArray(sanitizedQuestion.answers)) {
+          sanitizedQuestion.answers = [];
+        }
         if (typeof sanitizedQuestion.image === 'string') {
           const trimmedImage = sanitizedQuestion.image.trim();
           sanitizedQuestion.image = trimmedImage || undefined;
         }
+        const correctIndex = sanitizedQuestion.answers.findIndex((answer) => answer?.isCorrect);
+        sanitizedQuestion.correctAnswerIndex = correctIndex;
         prepared.push(sanitizedQuestion);
       });
 

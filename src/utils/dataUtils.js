@@ -1,7 +1,38 @@
 import { DEFAULT_SESSION_CONFIG, difficultyOrder } from '../constants.js';
 
 export function clone(data) {
-  return data ? JSON.parse(JSON.stringify(data)) : data;
+  if (data == null) return data;
+  if (typeof globalThis.structuredClone === 'function') {
+    try {
+      return globalThis.structuredClone(data);
+    } catch (err) {
+      // structuredClone can throw for unsupported types; fall back to JSON strategy.
+    }
+  }
+  return JSON.parse(JSON.stringify(data));
+}
+
+export function prepareQuestions(questions) {
+  if (!Array.isArray(questions)) return [];
+  let mutated = false;
+  const prepared = questions.map((question) => {
+    if (!question || typeof question !== 'object') return question;
+    const answers = Array.isArray(question.answers) ? question.answers : [];
+    const currentIndex = typeof question.correctAnswerIndex === 'number' ? question.correctAnswerIndex : -1;
+    if (currentIndex >= 0 && answers[currentIndex]?.isCorrect) {
+      return question;
+    }
+    const resolvedIndex = answers.findIndex((answer) => answer?.isCorrect);
+    if (resolvedIndex === currentIndex) {
+      return question;
+    }
+    mutated = true;
+    return {
+      ...question,
+      correctAnswerIndex: resolvedIndex
+    };
+  });
+  return mutated ? prepared : questions;
 }
 
 export function normalizeUserData(data) {
@@ -123,7 +154,11 @@ export function collectFilters(allQuestions) {
 }
 
 export function scoreAnswer(question, answerIndex) {
-  const correctIndex = question.answers.findIndex((answer) => answer.isCorrect);
+  const answers = Array.isArray(question.answers) ? question.answers : [];
+  const correctIndex =
+    typeof question.correctAnswerIndex === 'number' && question.correctAnswerIndex >= 0
+      ? question.correctAnswerIndex
+      : answers.findIndex((answer) => answer?.isCorrect);
   return {
     isCorrect: correctIndex === answerIndex,
     correctIndex
