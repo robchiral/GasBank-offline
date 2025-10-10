@@ -40,6 +40,7 @@ export function App() {
   const [customImageDirectory, setCustomImageDirectory] = useState(null);
   const [resolvedTheme, setResolvedTheme] = useState('dark');
   const autoBackupInFlight = useRef(false);
+  const toastTimeoutRef = useRef(null);
   const sessionDefaults = useMemo(
     () => normalizeSessionConfig(userData?.userSettings?.defaultSessionConfig),
     [userData?.userSettings?.defaultSessionConfig]
@@ -121,6 +122,8 @@ export function App() {
   const allQuestions = useMemo(() => {
     if (!userData) return baseQuestions;
     const custom = userData.customQuestions || [];
+    if (!custom.length) return baseQuestions;
+    if (!baseQuestions.length) return custom.slice();
     return [...baseQuestions, ...custom];
   }, [baseQuestions, userData]);
 
@@ -151,12 +154,27 @@ export function App() {
 
   const activeSession = userData?.activeSession ?? null;
 
-  const showToast = (type, message) => {
+  const showToast = useCallback((type, message) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = null;
+    }
     setToast({ type, message });
-    setTimeout(() => {
+    toastTimeoutRef.current = setTimeout(() => {
       setToast((prev) => (prev.message === message ? { type, message: '' } : prev));
+      toastTimeoutRef.current = null;
     }, 3200);
-  };
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+        toastTimeoutRef.current = null;
+      }
+    },
+    []
+  );
 
   const updateUserData = (mutator, afterPersist) => {
     setUserData((prev) => {
@@ -171,7 +189,7 @@ export function App() {
         .saveUserData(prepared)
         .then(() => {
           if (afterPersist) {
-            afterPersist(clone(prepared));
+            afterPersist(prepared);
           }
         })
         .catch((err) => {

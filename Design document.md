@@ -36,6 +36,7 @@
 - Backup automation relies on accurate attempt tracking; filesystem helpers guard against missing directories before writing timestamped snapshots.
 - File operations are centralized in the Electron main process to preserve sandbox boundaries and ease cross-platform support.
 - The shared `clone` helper prefers `structuredClone` (when available) before falling back to JSON serialization so state updates stay defensive without incurring unnecessary copy cost.
+- Toast notifications share a managed timeout ref so rapid successive messages replace one another cleanly and the timer clears on unmount, preventing stale callbacks in long-running sessions.
 - Shared form helpers (`field-group`, `checkbox-inline`) keep checkbox-based controls vertically aligned with their peer inputs, reducing ad-hoc spacing overrides when new settings panels are added, and the theme token palette (`--bg`, `--card-bg`, `--session-controls-bg`, etc.) keeps light/dark styling centralized.
 - Question content accepts GitHub-flavored Markdown (with KaTeX-backed math) so authors can embed lists, tables, emphasis, hyperlinks, and equations inside prompts or didactics without introducing custom HTML.
 - Session configuration helpers live in a shared utility (`sessionConfig.js`) so every entry point (defaults, configurator modal, persisted state) applies the same 1–100 question clamp and bool sanitization, reducing drift between UI validation and stored values.

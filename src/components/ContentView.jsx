@@ -77,14 +77,15 @@ export function ContentView({
   };
 
   const filteredQuestions = React.useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    const hasSearch = needle.length > 0;
     return allQuestions.filter((question) => {
       const isCustom = customQuestionIds.has(question.id);
       if (sourceFilter === 'default' && isCustom) return false;
       if (sourceFilter === 'custom' && !isCustom) return false;
       if (categoryFilter !== 'all' && question.category !== categoryFilter) return false;
       if (difficultyFilter !== 'all' && question.difficulty?.toLowerCase() !== difficultyFilter) return false;
-      if (search) {
-        const needle = search.toLowerCase();
+      if (hasSearch) {
         const haystack = `${question.id} ${question.questionText} ${question.category} ${question.subcategory}`.toLowerCase();
         if (!haystack.includes(needle)) return false;
       }

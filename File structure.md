@@ -11,6 +11,7 @@
 - `index.html` — static shell loaded by Electron; mounts the React bundle.
 - `main.jsx` — renderer entry point that mounts `<App />`, wires in error boundaries, and pulls in KaTeX styles for Markdown math support.
 - `app/App.jsx` — top-level React component; coordinates data loading (including `prepareQuestions` pre-processing), routing between views, state mutations, and IPC calls.
+  The toast system now centralizes timeout management so successive messages replace each other cleanly and clear on teardown.
 - `components/`
   - `Dashboard.jsx` — summary metrics with leading quick session actions, scrollable category breakdown charts, and review flows that disable when no items need attention.
   - `SessionView.jsx` — in-session question flow, answer submission, Markdown-rendered prompts/didactics/answers, and a fixed bottom control bar that houses flag and navigation buttons without jumping. The Question Palette list now lives inside a capped, scrollable container with edge fades that appear only when overflowed so long sessions keep the sidebar tidy without obscuring items.

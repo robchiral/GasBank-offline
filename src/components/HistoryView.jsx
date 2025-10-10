@@ -16,11 +16,12 @@ export function HistoryView({
         rows.push({
           id,
           attempt,
-          index: idx + 1
+          index: idx + 1,
+          timestampMs: Date.parse(attempt.timestamp ?? '') || 0
         });
       });
     });
-    return rows.sort((a, b) => new Date(b.attempt.timestamp) - new Date(a.attempt.timestamp));
+    return rows.sort((a, b) => b.timestampMs - a.timestampMs);
   }, [userData]);
 
   const sessions = userData?.sessionHistory || [];
