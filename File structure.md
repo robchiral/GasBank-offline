@@ -14,10 +14,10 @@
 - `components/`
   - `Dashboard.jsx` — summary metrics with leading quick session actions, scrollable category breakdown charts, and review flows that disable when no items need attention.
   - `SessionView.jsx` — in-session question flow, answer submission, Markdown-rendered prompts/didactics/answers, and a fixed bottom control bar that houses flag and navigation buttons without jumping. The Question Palette list now lives inside a capped, scrollable container with edge fades that appear only when overflowed so long sessions keep the sidebar tidy without obscuring items.
-  - `SessionConfigurator.jsx` — modal for building session parameters with a live matching-question count and a multi-select dropdown for category filters.
+  - `SessionConfigurator.jsx` — modal for building session parameters with a live matching-question count, a multi-select dropdown for category filters, and a question-count input that clamps selections to the 1–100 range before launch.
   - `HistoryView.jsx` — past session list with filtering, scrollable attempt log, educational-objective summaries, and restore logic.
   - `ContentView.jsx` — question browser, import/export utilities, and a custom question editor that supports adding/removing answer choices (text required, explanations optional) using a shared state builder to keep resets consistent. Question cards emphasize the educational objective to stay concise, and dropdown copy matches the session configurator (“All categories,” “All levels”) to keep filters consistent.
-  - `SettingsView.jsx` — surfaces appearance controls (system/light/dark), user data paths, backup directory/automation settings, and lets users adjust default session configuration. The Backups panel now separates directory info, action buttons, and auto-backup preferences with aligned checkbox + interval inputs.
+  - `SettingsView.jsx` — surfaces appearance controls (system/light/dark), user data paths, backup directory/automation settings, and lets users adjust default session configuration with the question-count field limited to 1–100. The Backups panel now separates directory info, action buttons, and auto-backup preferences with aligned checkbox + interval inputs.
   - `Charts.jsx` — reusable chart primitives for dashboard analytics.
   - `Toast.jsx` — lightweight notification component.
   - `MarkdownContent.jsx` — shared Markdown renderer (GFM + math) that powers question prompts, answer choices, stems, didactics, and objectives with KaTeX output.

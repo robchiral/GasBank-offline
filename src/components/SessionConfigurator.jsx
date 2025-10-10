@@ -1,13 +1,31 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_SESSION_CONFIG } from '../constants.js';
 
+const MAX_QUESTION_COUNT = 100;
+
+const clampQuestionCount = (value) => {
+  const numeric = Math.round(Number(value));
+  if (!Number.isFinite(numeric)) {
+    return DEFAULT_SESSION_CONFIG.numQuestions;
+  }
+  return Math.max(1, Math.min(MAX_QUESTION_COUNT, numeric));
+};
+
+const normalizeConfig = (raw = {}) => {
+  const merged = { ...DEFAULT_SESSION_CONFIG, ...raw };
+  return {
+    ...merged,
+    numQuestions: clampQuestionCount(merged.numQuestions)
+  };
+};
+
 export function SessionConfigurator({ filters, config, onUpdate, onCancel, onCreate, getMatchingCount }) {
-  const [localConfig, setLocalConfig] = useState({ ...DEFAULT_SESSION_CONFIG, ...config });
+  const [localConfig, setLocalConfig] = useState(() => normalizeConfig(config));
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const categoryDropdownRef = useRef(null);
 
   useEffect(() => {
-    setLocalConfig({ ...DEFAULT_SESSION_CONFIG, ...config });
+    setLocalConfig(normalizeConfig(config));
     setCategoryMenuOpen(false);
   }, [config]);
 
@@ -51,11 +69,13 @@ export function SessionConfigurator({ filters, config, onUpdate, onCancel, onCre
     return `${selections.length} selected`;
   }, [localConfig.selectedCategories]);
 
+  const normalizedLocalConfig = useMemo(() => normalizeConfig(localConfig), [localConfig]);
+
   const matchingCount = React.useMemo(() => {
     if (!getMatchingCount) return 0;
-    return getMatchingCount(localConfig);
-  }, [getMatchingCount, localConfig]);
-  const requestedCount = Math.max(1, Number(localConfig.numQuestions) || DEFAULT_SESSION_CONFIG.numQuestions);
+    return getMatchingCount(normalizedLocalConfig);
+  }, [getMatchingCount, normalizedLocalConfig]);
+  const requestedCount = normalizedLocalConfig.numQuestions;
   const plannedCount = Math.min(requestedCount, matchingCount);
 
   return (
@@ -82,8 +102,13 @@ export function SessionConfigurator({ filters, config, onUpdate, onCancel, onCre
               type="number"
               min={1}
               max={100}
-              value={localConfig.numQuestions}
-              onChange={(event) => setLocalConfig((prev) => ({ ...prev, numQuestions: Number(event.target.value) }))}
+              value={requestedCount}
+              onChange={(event) =>
+                setLocalConfig((prev) => ({
+                  ...prev,
+                  numQuestions: clampQuestionCount(event.target.value)
+                }))
+              }
             />
           </label>
         </div>
@@ -209,8 +234,8 @@ export function SessionConfigurator({ filters, config, onUpdate, onCancel, onCre
             className="button"
             disabled={matchingCount === 0}
             onClick={() => {
-              onUpdate(localConfig);
-              onCreate(localConfig);
+              onUpdate(normalizedLocalConfig);
+              onCreate(normalizedLocalConfig);
             }}
           >
             Launch Session

@@ -41,7 +41,12 @@ export function App() {
   const [resolvedTheme, setResolvedTheme] = useState('dark');
   const autoBackupInFlight = useRef(false);
   const sessionDefaults = useMemo(() => {
-    return { ...DEFAULT_SESSION_CONFIG, ...(userData?.userSettings?.defaultSessionConfig || {}) };
+    const merged = { ...DEFAULT_SESSION_CONFIG, ...(userData?.userSettings?.defaultSessionConfig || {}) };
+    merged.numQuestions = Math.max(
+      1,
+      Math.min(100, Number(merged.numQuestions) || DEFAULT_SESSION_CONFIG.numQuestions)
+    );
+    return merged;
   }, [userData?.userSettings?.defaultSessionConfig]);
   const themePreference = userData?.userSettings?.theme || 'system';
 
