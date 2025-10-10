@@ -436,6 +436,20 @@ export const globalCss = `
     color: var(--text);
   }
 
+  .markdown-content strong {
+    font-weight: 700;
+  }
+
+  .markdown-content em {
+    font-style: italic;
+  }
+
+  .markdown-content strong em,
+  .markdown-content em strong {
+    font-weight: 700;
+    font-style: italic;
+  }
+
   .markdown-content .katex-mathml {
     width: 0 !important;
     height: 0 !important;
