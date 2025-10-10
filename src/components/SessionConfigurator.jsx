@@ -1,31 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_SESSION_CONFIG } from '../constants.js';
-
-const MAX_QUESTION_COUNT = 100;
-
-const clampQuestionCount = (value) => {
-  const numeric = Math.round(Number(value));
-  if (!Number.isFinite(numeric)) {
-    return DEFAULT_SESSION_CONFIG.numQuestions;
-  }
-  return Math.max(1, Math.min(MAX_QUESTION_COUNT, numeric));
-};
-
-const normalizeConfig = (raw = {}) => {
-  const merged = { ...DEFAULT_SESSION_CONFIG, ...raw };
-  return {
-    ...merged,
-    numQuestions: clampQuestionCount(merged.numQuestions)
-  };
-};
+import { clampQuestionCount, normalizeSessionConfig } from '../utils/sessionConfig.js';
 
 export function SessionConfigurator({ filters, config, onUpdate, onCancel, onCreate, getMatchingCount }) {
-  const [localConfig, setLocalConfig] = useState(() => normalizeConfig(config));
+  const [localConfig, setLocalConfig] = useState(() => normalizeSessionConfig(config));
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const categoryDropdownRef = useRef(null);
 
   useEffect(() => {
-    setLocalConfig(normalizeConfig(config));
+    setLocalConfig(normalizeSessionConfig(config));
     setCategoryMenuOpen(false);
   }, [config]);
 
@@ -69,7 +51,10 @@ export function SessionConfigurator({ filters, config, onUpdate, onCancel, onCre
     return `${selections.length} selected`;
   }, [localConfig.selectedCategories]);
 
-  const normalizedLocalConfig = useMemo(() => normalizeConfig(localConfig), [localConfig]);
+  const normalizedLocalConfig = useMemo(
+    () => normalizeSessionConfig(localConfig),
+    [localConfig]
+  );
 
   const matchingCount = React.useMemo(() => {
     if (!getMatchingCount) return 0;

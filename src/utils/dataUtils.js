@@ -1,4 +1,5 @@
 import { DEFAULT_SESSION_CONFIG, difficultyOrder } from '../constants.js';
+import { normalizeSessionConfig } from './sessionConfig.js';
 
 export function clone(data) {
   if (data == null) return data;
@@ -46,17 +47,7 @@ export function normalizeUserData(data) {
     autoEnabled: rawBackupPreferences.autoEnabled !== false,
     interval: Math.max(1, Math.round(Number(rawBackupPreferences.interval) || 10))
   };
-  const defaultSessionConfig = {
-    ...DEFAULT_SESSION_CONFIG,
-    ...(userSettings.defaultSessionConfig || {})
-  };
-  if (!Array.isArray(defaultSessionConfig.selectedCategories)) {
-    defaultSessionConfig.selectedCategories = [];
-  }
-  if (!defaultSessionConfig.flagFilter) {
-    defaultSessionConfig.flagFilter = 'any';
-  }
-  userSettings.defaultSessionConfig = defaultSessionConfig;
+  userSettings.defaultSessionConfig = normalizeSessionConfig(userSettings.defaultSessionConfig);
   userSettings.backupPreferences = backupPreferences;
   normalized.userSettings = userSettings;
   if (!normalized.storage) {

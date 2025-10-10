@@ -24,3 +24,4 @@
 - `constants.js` — shared enums/defaults (session config, status labels).
 - `styles/globalStyles.js` — injected global styles, CSS variables (including light/dark theme tokens), Markdown/table styling, scroll helpers for analytics, the fixed session control bar layout, a capped palette container with conditional gradient overlays for session navigation, and shared form helpers used to align checkboxes with standard inputs.
 - `utils/dataUtils.js` — normalization helpers, scoring logic, cached question metadata (`prepareQuestions`), and defensive cloning that prefers `structuredClone`, all shared across `<App />` and supporting components.
+- `utils/sessionConfig.js` — centralizes session-configuration helpers (question-count clamping plus shape normalization) so UI surfaces and persistence stay in sync on allowable ranges.

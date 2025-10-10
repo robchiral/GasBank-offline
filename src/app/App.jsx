@@ -6,7 +6,6 @@ import { ContentView } from '../components/ContentView.jsx';
 import { SettingsView } from '../components/SettingsView.jsx';
 import { SessionConfigurator } from '../components/SessionConfigurator.jsx';
 import { Toast } from '../components/Toast.jsx';
-import { DEFAULT_SESSION_CONFIG } from '../constants.js';
 import {
   attemptTemplate,
   clone,
@@ -21,6 +20,7 @@ import {
   scoreAnswer
 } from '../utils/dataUtils.js';
 import { injectGlobalStyles } from '../styles/globalStyles.js';
+import { normalizeSessionConfig } from '../utils/sessionConfig.js';
 
 const MIN_REQUIRED_ANSWERS = 2;
 
@@ -31,7 +31,7 @@ export function App() {
   const [userData, setUserData] = useState(null);
   const [activeView, setActiveView] = useState('dashboard');
   const [showConfigurator, setShowConfigurator] = useState(false);
-  const [sessionConfig, setSessionConfig] = useState({ ...DEFAULT_SESSION_CONFIG });
+  const [sessionConfig, setSessionConfig] = useState(() => normalizeSessionConfig());
   const [toast, setToast] = useState({ type: 'success', message: '' });
   const [storagePaths, setStoragePaths] = useState({
     currentUserDataPath: '',
@@ -40,14 +40,10 @@ export function App() {
   const [customImageDirectory, setCustomImageDirectory] = useState(null);
   const [resolvedTheme, setResolvedTheme] = useState('dark');
   const autoBackupInFlight = useRef(false);
-  const sessionDefaults = useMemo(() => {
-    const merged = { ...DEFAULT_SESSION_CONFIG, ...(userData?.userSettings?.defaultSessionConfig || {}) };
-    merged.numQuestions = Math.max(
-      1,
-      Math.min(100, Number(merged.numQuestions) || DEFAULT_SESSION_CONFIG.numQuestions)
-    );
-    return merged;
-  }, [userData?.userSettings?.defaultSessionConfig]);
+  const sessionDefaults = useMemo(
+    () => normalizeSessionConfig(userData?.userSettings?.defaultSessionConfig),
+    [userData?.userSettings?.defaultSessionConfig]
+  );
   const themePreference = userData?.userSettings?.theme || 'system';
 
   const backupState = useMemo(() => {
@@ -99,10 +95,9 @@ export function App() {
           customQuestions: prepareQuestions(normalizedUser.customQuestions || [])
         };
         setUserData(preparedUserData);
-        setSessionConfig({
-          ...DEFAULT_SESSION_CONFIG,
-          ...(preparedUserData.userSettings?.defaultSessionConfig || {})
-        });
+        setSessionConfig(
+          normalizeSessionConfig(preparedUserData.userSettings?.defaultSessionConfig)
+        );
         if (payload.paths) {
           setStoragePaths(payload.paths);
         }
@@ -226,7 +221,7 @@ export function App() {
   const computeMatchingQuestionIds = useCallback(
     (config) => {
       if (!config) return [];
-      const normalized = { ...DEFAULT_SESSION_CONFIG, ...config };
+      const normalized = normalizeSessionConfig(config);
       const ids = [];
       allQuestions.forEach((question) => {
         const isCustom = customQuestionIds.has(question.id);
@@ -247,11 +242,7 @@ export function App() {
   );
 
   const startSessionFromConfig = (config, preselectedIds = null) => {
-    const normalizedConfig = { ...DEFAULT_SESSION_CONFIG, ...config };
-    normalizedConfig.numQuestions = Math.max(
-      1,
-      Math.min(100, Number(normalizedConfig.numQuestions) || DEFAULT_SESSION_CONFIG.numQuestions)
-    );
+    const normalizedConfig = normalizeSessionConfig(config);
     const baseIds = preselectedIds ? [...preselectedIds] : computeMatchingQuestionIds(normalizedConfig);
     if (!baseIds.length) {
       showToast('error', 'No questions match this configuration.');
@@ -457,7 +448,7 @@ export function App() {
       const normalized = normalizeUserData(result.userData);
       setUserData(normalized);
       setCustomImageDirectory(normalized.storage?.customImageDirectory || null);
-      setSessionConfig({ ...DEFAULT_SESSION_CONFIG, ...(normalized.userSettings?.defaultSessionConfig || {}) });
+      setSessionConfig(normalizeSessionConfig(normalized.userSettings?.defaultSessionConfig));
       showToast('success', 'Progress reset.');
     } catch (err) {
       console.error(err);
@@ -542,7 +533,7 @@ export function App() {
       const normalized = normalizeUserData(result.userData);
       setUserData(normalized);
       setCustomImageDirectory(normalized.storage?.customImageDirectory || null);
-      setSessionConfig({ ...DEFAULT_SESSION_CONFIG, ...(normalized.userSettings?.defaultSessionConfig || {}) });
+      setSessionConfig(normalizeSessionConfig(normalized.userSettings?.defaultSessionConfig));
       if (result.paths) {
         setStoragePaths(result.paths);
       }
@@ -648,21 +639,16 @@ export function App() {
   };
 
   const handleUpdateSessionDefaults = (config) => {
-    const sanitized = {
-      ...DEFAULT_SESSION_CONFIG,
+    const baseConfig = {
       ...sessionDefaults,
       ...config,
       selectedCategories: Array.isArray(config.selectedCategories)
         ? config.selectedCategories
-        : Array.isArray(sessionDefaults.selectedCategories)
-          ? sessionDefaults.selectedCategories
-          : []
+        : sessionDefaults.selectedCategories
     };
-    sanitized.numQuestions = Math.max(
-      1,
-      Math.min(100, Number(sanitized.numQuestions) || DEFAULT_SESSION_CONFIG.numQuestions)
-    );
-    sanitized.onlyCustom = typeof sanitized.onlyCustom === 'boolean' ? sanitized.onlyCustom : !!sessionDefaults.onlyCustom;
+    baseConfig.onlyCustom =
+      typeof config.onlyCustom === 'boolean' ? config.onlyCustom : sessionDefaults.onlyCustom;
+    const sanitized = normalizeSessionConfig(baseConfig, sessionDefaults);
     updateUserData((draft) => {
       draft.userSettings = draft.userSettings || {};
       draft.userSettings.defaultSessionConfig = sanitized;
@@ -992,9 +978,9 @@ export function App() {
           onUpdate={(config) => setSessionConfig(config)}
           onCancel={() => setShowConfigurator(false)}
           onCreate={(config) => {
-            setShowConfigurator(false);
-            startSessionFromConfig(config);
-          }}
+              setShowConfigurator(false);
+              startSessionFromConfig(config);
+            }}
         />
       )}
 

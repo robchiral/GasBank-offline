@@ -1,6 +1,7 @@
 import React from 'react';
 import { DEFAULT_SESSION_CONFIG } from '../constants.js';
 import { formatDate } from '../utils/dataUtils.js';
+import { clampQuestionCount, normalizeSessionConfig } from '../utils/sessionConfig.js';
 
 export function SettingsView({
   paths,
@@ -27,7 +28,7 @@ export function SettingsView({
 
   const resolvedImageDirectory = customImageDirectory || defaultImageDirectory;
   const mergedDefaults = React.useMemo(
-    () => ({ ...DEFAULT_SESSION_CONFIG, ...(sessionDefaults || {}) }),
+    () => normalizeSessionConfig(sessionDefaults),
     [sessionDefaults]
   );
   const normalizedThemePreference = themePreference || 'system';
@@ -84,13 +85,13 @@ export function SettingsView({
 
   const handleSaveDefaults = () => {
     if (!onUpdateSessionDefaults) return;
-    const sanitized = {
-      ...DEFAULT_SESSION_CONFIG,
+    const baseConfig = {
       ...localDefaults,
-      selectedCategories: Array.isArray(localDefaults.selectedCategories) ? localDefaults.selectedCategories : [],
-      onlyCustom: typeof localDefaults.onlyCustom === 'boolean' ? localDefaults.onlyCustom : false
+      selectedCategories: Array.isArray(localDefaults.selectedCategories)
+        ? localDefaults.selectedCategories
+        : []
     };
-    sanitized.numQuestions = Math.max(1, Math.min(100, Number(sanitized.numQuestions) || DEFAULT_SESSION_CONFIG.numQuestions));
+    const sanitized = normalizeSessionConfig(baseConfig, mergedDefaults);
     onUpdateSessionDefaults(sanitized);
     setLocalDefaults(sanitized);
   };
@@ -274,7 +275,7 @@ export function SettingsView({
               onChange={(event) =>
                 setLocalDefaults((prev) => ({
                   ...prev,
-                  numQuestions: Math.max(1, Math.min(100, Number(event.target.value) || 1))
+                  numQuestions: clampQuestionCount(event.target.value, prev.numQuestions)
                 }))
               }
             />
