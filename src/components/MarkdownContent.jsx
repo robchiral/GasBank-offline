@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
 
 export function MarkdownContent({ children, className = '', ...rest }) {
   if (children == null) return null;
@@ -12,7 +13,7 @@ export function MarkdownContent({ children, className = '', ...rest }) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkMath]}
-      rehypePlugins={[rehypeKatex]}
+      rehypePlugins={[rehypeRaw, rehypeKatex]}
       components={{
         table({ node, ...props }) {
           return (
