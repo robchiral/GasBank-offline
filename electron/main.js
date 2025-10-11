@@ -247,7 +247,7 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    title: 'Anesthesiology Question Bank'
+    title: 'GasBank'
   });
 
   const indexPath = path.join(app.getAppPath(), 'src', 'index.html');
