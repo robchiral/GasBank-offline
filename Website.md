@@ -64,3 +64,23 @@ Support project costs: [Donate on PayPal](https://www.paypal.com/donate/?hosted_
 ## License
 
 GasBank is released under the MIT License.
+
+Number of questions by category:
+Category
+Abdominal, Hepatic, Renal & Endocrine    55
+Airway & ENT                             65
+Ambulatory, Procedural & Remote          35
+Cardiac Anesthesia                       55
+Fluids, Blood & Coagulation              70
+General Anesthesia & Postop              65
+Local, Regional & Acute Pain             90
+Monitoring, Machine & Ventilation        75
+Neuroanesthesia                          45
+Obstetric Anesthesia                     55
+Pediatric Anesthesia                     50
+Perioperative Evaluation & Medicine      70
+Pharmacology & Neuromuscular             95
+Quality, Safety, Ethics & Practice       50
+Thoracic Anesthesia                      45
+Transplant Anesthesia                    35
+Vascular, Trauma & Burns                 45
