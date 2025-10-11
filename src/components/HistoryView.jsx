@@ -38,52 +38,6 @@ export function HistoryView({
       </div>
 
       <div className="card">
-        <h2>Question Attempts</h2>
-        {attempts.length === 0 ? (
-          <div className="empty-state">No recorded attempts yet.</div>
-        ) : (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Question</th>
-                  <th>Category</th>
-                  <th>Attempt #</th>
-                  <th>Result</th>
-                  <th>Timestamp</th>
-                </tr>
-              </thead>
-              <tbody>
-                {attempts.map((row) => {
-                  const question = questionsMap.get(row.id);
-                  const resultClass = row.attempt.result === 'correct' ? 'pill correct' : 'pill incorrect';
-                  const objective = question?.educationalObjective || 'Educational objective unavailable.';
-                  return (
-                    <tr key={`${row.id}-${row.index}-${row.attempt.timestamp}`}>
-                      <td style={{ maxWidth: 360 }}>
-                        <div style={{ fontWeight: 600 }}>{row.id}</div>
-                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                          {question ? objective : 'Deleted question'}
-                        </div>
-                      </td>
-                      <td style={{ color: 'var(--text-muted)' }}>
-                        {question ? `${question.category} ▸ ${question.subcategory}` : '—'}
-                      </td>
-                      <td>{row.index}</td>
-                      <td>
-                        <span className={resultClass}>{row.attempt.result.toUpperCase()}</span>
-                      </td>
-                      <td>{formatDate(row.attempt.timestamp)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      <div className="card">
         <h2>Session History</h2>
         <p style={{ color: 'var(--text-muted)', marginBottom: 12 }}>
           Click Review to reopen the session in the Session workspace with the original answer state.
@@ -130,6 +84,52 @@ export function HistoryView({
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <h2>Question Attempts</h2>
+        {attempts.length === 0 ? (
+          <div className="empty-state">No recorded attempts yet.</div>
+        ) : (
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Question</th>
+                  <th>Category</th>
+                  <th>Attempt #</th>
+                  <th>Result</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attempts.map((row) => {
+                  const question = questionsMap.get(row.id);
+                  const resultClass = row.attempt.result === 'correct' ? 'pill correct' : 'pill incorrect';
+                  const objective = question?.educationalObjective || 'Educational objective unavailable.';
+                  return (
+                    <tr key={`${row.id}-${row.index}-${row.attempt.timestamp}`}>
+                      <td style={{ maxWidth: 360 }}>
+                        <div style={{ fontWeight: 600 }}>{row.id}</div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                          {question ? objective : 'Deleted question'}
+                        </div>
+                      </td>
+                      <td style={{ color: 'var(--text-muted)' }}>
+                        {question ? `${question.category} ▸ ${question.subcategory}` : '—'}
+                      </td>
+                      <td>{row.index}</td>
+                      <td>
+                        <span className={resultClass}>{row.attempt.result.toUpperCase()}</span>
+                      </td>
+                      <td>{formatDate(row.attempt.timestamp)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

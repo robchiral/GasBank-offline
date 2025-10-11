@@ -98,16 +98,20 @@ export function SessionView({
       ? buildCustomImageSrc(customImageDirectory, question.image)
       : `../data/images/${question.image}`
     : null;
+  const difficultyLabel = question.difficulty
+    ? `${question.difficulty.charAt(0).toUpperCase()}${question.difficulty.slice(1).toLowerCase()}`
+    : null;
+  const categoryLabel = question.category || 'Uncategorized';
+  const questionIdLabel = question.id || 'ID unavailable';
 
   return (
     <div className="session-wrapper">
       <div className="session-container">
         <div className="card session-question">
           <div className="question-meta">
-            <span className="pill">{session.mode} mode</span>
-            <span>Question {questionIndex + 1} of {totalQuestions}</span>
-            {question.difficulty && <span className="pill">{question.difficulty.toUpperCase()}</span>}
-            <span>{question.category} ▸ {question.subcategory}</span>
+            <span>{questionIdLabel}</span>
+            <span>{categoryLabel}</span>
+            {difficultyLabel && <span className="pill">{difficultyLabel}</span>}
             {isFlagged && (
               <span
                 className="pill"

@@ -1,6 +1,6 @@
 export const DEFAULT_SESSION_CONFIG = {
   mode: 'Tutor',
-  numQuestions: 10,
+  numQuestions: 20,
   randomize: true,
   selectedCategories: [],
   difficulty: 'all',

@@ -953,6 +953,7 @@ export const globalCss = `
 
   .question-meta {
     display: flex;
+    align-items: center;
     gap: 12px;
     flex-wrap: wrap;
     font-size: 13px;

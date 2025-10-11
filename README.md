@@ -2,7 +2,9 @@
 
 **Free, open-source anesthesiology question bank built for medical students and interns.**
 
-- 1,000 questions aligned with ABA basic content.
+Support project costs: [Donate on PayPal](https://www.paypal.com/donate/?hosted_button_id=E9AH3MYABRBAL)
+
+- 1,000 clinical anesthesia questions aligned with ABA basic content.
 - 100% free forever — app and questions are open source.
 - Bridges the gap between USMLE Step 2 prep and CA-1 year.
 - Backed by high-quality LLM drafting (GPT-5 reasoning) and cross-reviewed (Gemini 2.5 Pro) before inclusion.
@@ -37,13 +39,12 @@
    ```
 2. **Launch the desktop app**
    ```bash
-   npm run dev
+   npm run start
    ```
-3. Start practicing — the bundled ABA BASIC-aligned questions are ready on day one.
 
-To build the production bundle:
+To build the production app:
 ```bash
-npm run build
+npm run make
 ```
 
 ---
@@ -55,9 +56,6 @@ We welcome:
 - New question ideas (especially image-based cases!).
 - Feedback on UX and performance.
 - Pull requests that improve accessibility, speed, or content.
-
-Want to keep GasBank free and growing?  
-Support project costs: [Donate on PayPal](https://www.paypal.com/donate/?hosted_button_id=E9AH3MYABRBAL)
 
 ---
 
