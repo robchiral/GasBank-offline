@@ -46,15 +46,15 @@ Support project costs: [Donate on PayPal](https://www.paypal.com/donate/?hosted_
    ```bash
    npm install
    ```
-5. **Start GasBank**
+5. **Build an installer you can move to any computer**
    ```bash
-   npm run start
+   npm run make
    ```
-   The desktop window opens after the command finishes setting up.
+   When the command finishes, open the new `out/make` folder inside GasBank. Choose the installer that matches your computer (for example, the `.exe` file on Windows or the `.dmg`/`.zip` file on macOS). Run it now or copy it wherever you want.
 
-To create a standalone installer (optional):
+To preview the app without installing (optional):
 ```bash
-npm run make
+npm run start
 ```
 
 ---
