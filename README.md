@@ -33,16 +33,26 @@ Support project costs: [Donate on PayPal](https://www.paypal.com/donate/?hosted_
 
 ## Quick Start
 
-1. **Install dependencies**
+1. **Install Node.js (includes npm)**
+   - Visit [https://nodejs.org](https://nodejs.org) and download the “LTS” installer for your operating system (Windows or macOS).
+   - Run the installer with the default options. This installs both Node.js and the npm tool you will use in the next steps.
+   - After installation, open a new Terminal (macOS) or Command Prompt (Windows) and type `npm -v`. If you see a version number, npm is ready.
+2. **Download GasBank**
+   - On this GitHub page, click the green `Code` button, then `Download ZIP`, and unzip the file to a folder you can find easily (for example, your Desktop).
+3. **Open the project folder in a terminal**
+   - macOS: Open Terminal, type `cd ` (note the space), drag the GasBank folder into the window, then press Enter.
+   - Windows: Open Command Prompt, type `cd `, drag the GasBank folder into the window, and press Enter.
+4. **Install the app’s dependencies**
    ```bash
    npm install
    ```
-2. **Launch the desktop app**
+5. **Start GasBank**
    ```bash
    npm run start
    ```
+   The desktop window opens after the command finishes setting up.
 
-To build the production app:
+To create a standalone installer (optional):
 ```bash
 npm run make
 ```
