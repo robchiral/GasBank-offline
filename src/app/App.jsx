@@ -873,7 +873,7 @@ export function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div className="brand">Anesthesiology Question Bank</div>
+        <div className="brand">GasBank</div>
         <nav className="nav-buttons">
           <button
             className={`nav-button ${activeView === 'dashboard' ? 'active' : ''}`}
