@@ -1,4 +1,4 @@
-# GasBank
+# GasBank (offline version)
 
 **Free, open-source anesthesiology question bank built for medical students and interns.**
 
